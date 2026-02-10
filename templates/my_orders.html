@@ -20,64 +20,75 @@
     {% if current_order and current_order.items %}
         <div class="space-y-4">
             {% for item in current_order.items %}
-            <!-- Order Item Card -->
-            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all active:scale-[0.98]">
-                <!-- Card Main Content -->
-                <div class="p-3 flex items-start space-x-3 relative cursor-pointer" onclick="toggleDetails('details-{{ item.id }}')">
-                    <!-- Image -->
-                    <div class="relative">
-                        {% if item.dish.image_url %}
-                        <img src="{{ item.dish.image_url }}" class="w-20 h-20 rounded-2xl object-cover shadow-sm">
-                        {% else %}
-                        <div class="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-300">
-                            <i class="fas fa-utensils text-2xl"></i>
-                        </div>
-                        {% endif %}
-                        <!-- Status Badge -->
-                        <div class="absolute -top-1 -left-1">
-                            {% if item.status == 'completed' %}
-                            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-[10px] text-white ring-2 ring-white">
-                                <i class="fas fa-check"></i>
-                            </span>
-                            {% elif item.status == 'delayed' %}
-                            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white ring-2 ring-white">
-                                <i class="fas fa-clock"></i>
-                            </span>
+            <!-- Order Item Wrapper (for swipe) -->
+            <div class="relative group overflow-hidden rounded-3xl swipe-container" data-id="{{ item.id }}">
+                <!-- Swipe Action Background -->
+                <div class="absolute inset-0 bg-green-500 flex items-center px-6 text-white transition-opacity opacity-0 swipe-action-bg">
+                    <i class="fas fa-check-circle text-2xl"></i>
+                    <span class="ml-3 font-bold">标记完成</span>
+                </div>
+
+                <!-- Order Item Card -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-transform duration-300 relative z-10 swipe-card" 
+                     style="touch-action: pan-y;"
+                     onclick="toggleDetails('details-{{ item.id }}')">
+                    <!-- Card Main Content -->
+                    <div class="p-3 flex items-start space-x-3 relative cursor-pointer">
+                        <!-- Image -->
+                        <div class="relative">
+                            {% if item.dish.image_url %}
+                            <img src="{{ item.dish.image_url }}" class="w-20 h-20 rounded-2xl object-cover shadow-sm">
+                            {% else %}
+                            <div class="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-300">
+                                <i class="fas fa-utensils text-2xl"></i>
+                            </div>
                             {% endif %}
+                            <!-- Status Badge -->
+                            <div class="absolute -top-1 -left-1">
+                                {% if item.status == 'completed' %}
+                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-[10px] text-white ring-2 ring-white">
+                                    <i class="fas fa-check"></i>
+                                </span>
+                                {% elif item.status == 'delayed' %}
+                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white ring-2 ring-white">
+                                    <i class="fas fa-clock"></i>
+                                </span>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Info -->
-                    <div class="flex-1 min-w-0 pr-16">
-                        <div class="flex items-center space-x-2 mb-0.5">
-                            <h3 class="font-bold text-gray-800 truncate">{{ item.dish.name }}</h3>
-                            <span class="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-bold whitespace-nowrap">{{ item.user.name }}</span>
-                        </div>
-                        
-                        <div class="flex items-center text-orange-500 text-[11px] font-bold mb-1">
-                            <i class="far fa-clock mr-1"></i>
-                            <span>{{ item.preferred_time or '尽快' }}</span>
+                        <!-- Info -->
+                        <div class="flex-1 min-w-0 pr-16">
+                            <div class="flex items-center space-x-2 mb-0.5">
+                                <h3 class="font-bold text-gray-800 truncate">{{ item.dish.name }}</h3>
+                                <span class="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-bold whitespace-nowrap">{{ item.user.name }}</span>
+                            </div>
+                            
+                            <div class="flex items-center text-orange-500 text-[11px] font-bold mb-1">
+                                <i class="far fa-clock mr-1"></i>
+                                <span>{{ item.preferred_time or '尽快' }}</span>
+                            </div>
+
+                            <!-- Secondary Info (Small Text) -->
+                            <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-gray-400">
+                                <p class="truncate"><span class="text-orange-300 mr-1">●</span>口味: {{ item.taste or '-' }}</p>
+                                <p class="truncate"><span class="text-orange-300 mr-1">●</span>地点: {{ item.location or '-' }}</p>
+                                <p class="col-span-2 truncate"><span class="text-orange-300 mr-1">●</span>备注: {{ item.remarks or '无' }}</p>
+                            </div>
                         </div>
 
-                        <!-- Secondary Info (Small Text) -->
-                        <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-gray-400">
-                            <p class="truncate"><span class="text-orange-300 mr-1">●</span>口味: {{ item.taste or '-' }}</p>
-                            <p class="truncate"><span class="text-orange-300 mr-1">●</span>地点: {{ item.location or '-' }}</p>
-                            <p class="col-span-2 truncate"><span class="text-orange-300 mr-1">●</span>备注: {{ item.remarks or '无' }}</p>
+                        <!-- Quick Actions (Right Side) -->
+                        <div class="absolute right-3 top-3 bottom-3 flex flex-col justify-between py-1" onclick="event.stopPropagation()">
+                            <button onclick="submitAction('/complete-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-500 hover:bg-green-500 hover:text-white transition-colors">
+                                <i class="fas fa-check text-xs"></i>
+                            </button>
+                            <button onclick="submitAction('/delay-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors">
+                                <i class="fas fa-history text-[10px]"></i>
+                            </button>
+                            <button onclick="if(confirm('确定删除吗？')) submitAction('/delete-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
                         </div>
-                    </div>
-
-                    <!-- Quick Actions (Right Side) -->
-                    <div class="absolute right-3 top-3 bottom-3 flex flex-col justify-between py-1" onclick="event.stopPropagation()">
-                        <button onclick="submitAction('/complete-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-500 hover:bg-green-500 hover:text-white transition-colors">
-                            <i class="fas fa-check text-xs"></i>
-                        </button>
-                        <button onclick="submitAction('/delay-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors">
-                            <i class="fas fa-history text-[10px]"></i>
-                        </button>
-                        <button onclick="if(confirm('确定删除吗？')) submitAction('/delete-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors">
-                            <i class="fas fa-trash-alt text-xs"></i>
-                        </button>
                     </div>
                 </div>
 
@@ -164,6 +175,60 @@ function submitAction(url) {
     form.action = url;
     form.submit();
 }
+
+// Swipe Gesture Logic
+document.addEventListener('DOMContentLoaded', () => {
+    const swipeContainers = document.querySelectorAll('.swipe-container');
+    
+    swipeContainers.forEach(container => {
+        const card = container.querySelector('.swipe-card');
+        const actionBg = container.querySelector('.swipe-action-bg');
+        const itemId = container.dataset.id;
+        
+        let startX = 0;
+        let currentX = 0;
+        let isSwiping = false;
+        const threshold = 100; // px to trigger action
+
+        card.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isSwiping = true;
+            card.style.transition = 'none';
+        }, { passive: true });
+
+        card.addEventListener('touchmove', (e) => {
+            if (!isSwiping) return;
+            currentX = e.touches[0].clientX - startX;
+            
+            // Only allow swiping to the right
+            if (currentX > 0) {
+                const moveX = Math.min(currentX, 150);
+                card.style.transform = `translateX(${moveX}px)`;
+                actionBg.style.opacity = Math.min(moveX / threshold, 1);
+            }
+        }, { passive: true });
+
+        card.addEventListener('touchend', () => {
+            if (!isSwiping) return;
+            isSwiping = false;
+            
+            card.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            
+            if (currentX > threshold) {
+                // Trigger complete action
+                card.style.transform = `translateX(100%)`;
+                setTimeout(() => {
+                    submitAction(`/complete-item/${itemId}`);
+                }, 200);
+            } else {
+                // Reset position
+                card.style.transform = `translateX(0)`;
+                actionBg.style.opacity = '0';
+            }
+            currentX = 0;
+        });
+    });
+});
 </script>
 
 <style>

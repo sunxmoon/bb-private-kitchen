@@ -222,7 +222,7 @@ async def add_item(
         remarks=remarks
     )
     crud.add_order_item(db, item_data)
-    return RedirectResponse(url="/my-orders", status_code=303)
+    return RedirectResponse(url="/my-orders?msg=点餐成功！", status_code=303)
 
 @app.post("/create-dish")
 async def create_dish(
@@ -243,7 +243,7 @@ async def create_dish(
         created_by=current_user.id
     )
     crud.create_dish(db, dish_data)
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/?msg=新菜品已收录！", status_code=303)
 
 @app.get("/get-preference/{dish_id}")
 async def get_preference(
@@ -314,7 +314,7 @@ async def update_item(
     if status:
         item_data["status"] = status
     crud.update_order_item(db, item_id, item_data, current_user.id)
-    return RedirectResponse(url="/my-orders", status_code=303)
+    return RedirectResponse(url="/my-orders?msg=已更新", status_code=303)
 
 @app.post("/complete-item/{item_id}")
 async def complete_item(
@@ -323,7 +323,7 @@ async def complete_item(
     current_user: models.User = Depends(login_required)
 ):
     crud.update_order_item(db, item_id, {"status": "completed"}, current_user.id)
-    return RedirectResponse(url="/my-orders", status_code=303)
+    return RedirectResponse(url="/my-orders?msg=祝你好胃口！", status_code=303)
 
 @app.post("/delay-item/{item_id}")
 async def delay_item(
@@ -332,7 +332,7 @@ async def delay_item(
     current_user: models.User = Depends(login_required)
 ):
     crud.update_order_item(db, item_id, {"status": "delayed"}, current_user.id)
-    return RedirectResponse(url="/my-orders", status_code=303)
+    return RedirectResponse(url="/my-orders?msg=已延期", status_code=303)
 
 @app.post("/delete-item/{item_id}")
 async def delete_item(
@@ -341,7 +341,7 @@ async def delete_item(
     current_user: models.User = Depends(login_required)
 ):
     crud.delete_order_item(db, item_id, current_user.id)
-    return RedirectResponse(url="/my-orders", status_code=303)
+    return RedirectResponse(url="/my-orders?msg=已取消", status_code=303)
 
 @app.post("/delete-order/{order_id}")
 async def delete_order(

@@ -37,6 +37,11 @@
 - [x] **Task 2: 常用配置一键填入** - 自动记忆上次点餐偏好，减少重复输入
 - [x] **Task 3: “今天吃什么”随机翻牌** - 趣味解决选择困难症
 
+## Feature Implementation Checklist (Phase 3: P2 精致打磨)
+- [x] **Task 4: 滚动动态背景** - 背景图随滚动深度动态调整模糊与透明度，增强呼吸感
+- [x] **Task 5: 移动端滑动手势** - 订单管理页支持滑动手势删除或完成，提升交互效率
+- [x] **Task 6: 实时交互反馈** - 增加简单的通知机制或状态轮询，增强家庭互动感
+
 ## Completion Promise
 The Household Self-Service Ordering Web App is fully implemented, debugged, and optimized.
 - Mobile-first web interface using Tailwind CSS and HTMX.
