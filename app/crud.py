@@ -97,10 +97,10 @@ def get_dish(db: Session, dish_id: int):
     return db.query(models.Dish).filter(models.Dish.id == dish_id).first()
 
 def create_dish(db: Session, dish: schemas.DishCreate):
-    db_dish = models.Dish(**dish.dict())
+    db_dish = models.Dish(**dish.model_dump())
     db.add(db_dish)
     db.flush()
-    create_audit_log(db, dish.created_by, "创建菜品", "dishes", db_dish.id, None, dish.dict(), commit=False)
+    create_audit_log(db, dish.created_by, "创建菜品", "dishes", db_dish.id, None, dish.model_dump(), commit=False)
     db.commit()
     db.refresh(db_dish)
     return db_dish
@@ -136,19 +136,19 @@ def get_current_order(db: Session):
     return db.query(models.Order).filter(models.Order.status == "open").order_by(models.Order.created_at.desc()).first()
 
 def create_order(db: Session, order: schemas.OrderCreate):
-    db_order = models.Order(**order.dict())
+    db_order = models.Order(**order.model_dump())
     db.add(db_order)
     db.flush()
-    create_audit_log(db, order.created_by, "创建订单", "orders", db_order.id, None, order.dict(), commit=False)
+    create_audit_log(db, order.created_by, "创建订单", "orders", db_order.id, None, order.model_dump(), commit=False)
     db.commit()
     db.refresh(db_order)
     return db_order
 
 def add_order_item(db: Session, item: schemas.OrderItemCreate):
-    db_item = models.OrderItem(**item.dict())
+    db_item = models.OrderItem(**item.model_dump())
     db.add(db_item)
     db.flush()
-    create_audit_log(db, item.user_id, "添加点餐", "order_items", db_item.id, None, item.dict(), commit=False)
+    create_audit_log(db, item.user_id, "添加点餐", "order_items", db_item.id, None, item.model_dump(), commit=False)
     db.commit()
     db.refresh(db_item)
     return db_item

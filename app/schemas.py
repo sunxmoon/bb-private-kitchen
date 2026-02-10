@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Any
 from datetime import datetime
 
@@ -14,11 +14,10 @@ class UserUpdate(BaseModel):
     background_image_url: Optional[str] = None
 
 class User(UserBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     background_image_url: Optional[str] = None
     created_at: datetime
-    class Config:
-        orm_mode = True
 
 class DishBase(BaseModel):
     name: str
@@ -29,13 +28,12 @@ class DishCreate(DishBase):
     created_by: int
 
 class Dish(DishBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     created_by: int
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    class Config:
-        orm_mode = True
 
 class OrderItemBase(BaseModel):
     dish_id: int
@@ -52,12 +50,11 @@ class OrderItemCreate(OrderItemBase):
     order_id: int
 
 class OrderItem(OrderItemBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     order_id: int
     created_at: datetime
     updated_at: datetime
-    class Config:
-        orm_mode = True
 
 class OrderBase(BaseModel):
     status: str = "open"
@@ -66,13 +63,12 @@ class OrderCreate(OrderBase):
     created_by: int
 
 class Order(OrderBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     created_by: int
     created_at: datetime
     updated_at: datetime
     items: List[OrderItem] = []
-    class Config:
-        orm_mode = True
 
 class AuditLogBase(BaseModel):
     user_id: int
@@ -83,7 +79,6 @@ class AuditLogBase(BaseModel):
     new_values: Optional[Any] = None
 
 class AuditLog(AuditLogBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     timestamp: datetime
-    class Config:
-        orm_mode = True

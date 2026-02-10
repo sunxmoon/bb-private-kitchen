@@ -17,10 +17,13 @@ from .database import engine, get_db
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create database tables
-models.Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="宝宝的私房菜馆")
+
+@app.on_event("startup")
+def on_startup():
+    # Create database tables on startup (skip if testing)
+    if os.getenv("TESTING") != "1":
+        models.Base.metadata.create_all(bind=engine)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -68,7 +71,6 @@ async def login_page(request: Request, db: Session = Depends(get_db)):
 
 @app.post("/login")
 async def login(
-    response: Response,
     name: str = Form(...),
     password: str = Form(...),
     db: Session = Depends(get_db)
@@ -82,7 +84,7 @@ async def login(
     return response
 
 @app.get("/logout")
-async def logout(response: Response):
+async def logout():
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie(key="user_id")
     return response

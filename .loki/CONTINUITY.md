@@ -27,6 +27,10 @@
 - [x] Feature: User Management Module (CRUD for users)
 - [x] Feature: Authentication system (Login/Logout) with default password "666"
 - [x] Feature: Switch User button and refined navigation
+- [x] Optimization: Code audit, security hardening, and V2 compatibility
+- [x] Testing: Implemented unit tests for Auth and CRUD
+- [x] Bug Fix: Fixed logout cookie deletion bug
+- [x] Bug Fix: Fixed DB connection error during import/testing
 
 ## Completion Promise
 The Household Self-Service Ordering Web App is fully implemented, debugged, and optimized.
@@ -36,17 +40,20 @@ The Household Self-Service Ordering Web App is fully implemented, debugged, and 
 - Image upload support for dishes with automatic storage cleanup.
 - Robust user management using cookies and dynamic DB lookups.
 - Full User Management CRUD and Password-protected Login system.
+- Secure password hashing using bcrypt.
+- Comprehensive test suite ensuring core stability.
 
 ## Next Steps for User
 1. Ensure PostgreSQL is running and create a database named `ordering_db`.
 2. Update `.env` with correct database credentials (DATABASE_URL).
-3. Run `python seed_db.py` to initialize data (this will also update passwords to "666").
+3. Run `python seed_db.py` to initialize data (this will also update passwords to "666" with secure hashing).
 4. Run `./run.sh` to start the application.
-5. Use "666" as the default password for all initial users.
+5. To run tests: `TESTING=1 PYTHONPATH=. pytest tests/`
 
 ## Mistakes & Learnings
-- **Authentication Flow**: Moved from simple cookie-based user switching to a full login/logout flow for better security and audit integrity.
-- **User Management**: Added a dedicated management page for household members to manage the user list.
-- **Database Schema**: Manually updated models to include passwords. (Note: Existing databases may need manual column addition: `ALTER TABLE users ADD COLUMN password VARCHAR(255) DEFAULT '666' NOT NULL;`)
+- **FastAPI Responses**: Remembered that `RedirectResponse` is a separate object; setting cookies on the background `Response` parameter doesn't affect the returned `RedirectResponse`.
+- **Database Initialization**: Moving `metadata.create_all` to a startup event prevents connection errors during testing or imports when the DB is unavailable.
+- **Dependency Management**: Standardized on Pydantic V2 and direct `bcrypt` usage for better compatibility with Python 3.12.
+
 
 
