@@ -271,10 +271,34 @@ async def history_page(
     context = get_common_context(db, current_user)
     orders = crud.get_order_history(db)
     logs = crud.get_audit_logs(db)
+    
+    # Calculate some statistics
+    all_items = []
+    for o in orders:
+        all_items.extend(o.items)
+    
+    dish_counts = {}
+    for item in all_items:
+        dish_counts[item.dish.name] = dish_counts.get(item.dish.name, 0) + 1
+    
+    top_dishes = sorted(dish_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+    
+    user_counts = {}
+    for item in all_items:
+        user_counts[item.user.name] = user_counts.get(item.user.name, 0) + 1
+    
+    active_users = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+
     return templates.TemplateResponse("history.html", {
         "request": request, 
         "orders": orders, 
         "logs": logs,
+        "stats": {
+            "total_orders": len(orders),
+            "total_items": len(all_items),
+            "top_dishes": top_dishes,
+            "active_users": active_users
+        },
         **context
     })
 

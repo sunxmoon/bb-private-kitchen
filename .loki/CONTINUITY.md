@@ -42,6 +42,11 @@
 - [x] **Task 5: 移动端滑动手势** - 订单管理页支持滑动手势删除或完成，提升交互效率
 - [x] **Task 6: 实时交互反馈** - 增加简单的通知机制或状态轮询，增强家庭互动感
 
+## Feature Implementation Checklist (Phase 4: 记录模块增强)
+- [x] **Task 7: 美食档案统计** - 增加点餐总量、点单次数、热门菜品排行
+- [x] **Task 8: 时间轴点单记录** - 采用时间轴布局，详细展示每笔订单的口味、备注及状态
+- [x] **Task 9: 可视化审计详情** - 审计日志支持查看具体修改的内容字段（如修改了哪个属性）
+
 ## Completion Promise
 The Household Self-Service Ordering Web App is fully implemented, debugged, and optimized.
 - Mobile-first web interface using Tailwind CSS and HTMX.
@@ -54,6 +59,8 @@ The Household Self-Service Ordering Web App is fully implemented, debugged, and 
 - Comprehensive test suite ensuring core stability.
 - **Enhanced UI/UX**: Card-based library, glassmorphism, and responsive design.
 - **Smart Features**: One-click fill from history and random picker for meal planning.
+- **Detailed History**: Food archives with statistics, timeline-based order tracking, and granular audit log visualization.
+
 
 ## Next Steps for User
 1. Ensure PostgreSQL is running and create a database named `ordering_db`.
