@@ -32,6 +32,11 @@
 - [x] Bug Fix: Fixed logout cookie deletion bug
 - [x] Bug Fix: Fixed DB connection error during import/testing
 
+## Feature Implementation Checklist (Phase 2)
+- [x] **Task 1: UI 美学升级** - 卡片式布局增强、质感提升、响应式优化
+- [x] **Task 2: 常用配置一键填入** - 自动记忆上次点餐偏好，减少重复输入
+- [x] **Task 3: “今天吃什么”随机翻牌** - 趣味解决选择困难症
+
 ## Completion Promise
 The Household Self-Service Ordering Web App is fully implemented, debugged, and optimized.
 - Mobile-first web interface using Tailwind CSS and HTMX.
@@ -42,6 +47,8 @@ The Household Self-Service Ordering Web App is fully implemented, debugged, and 
 - Full User Management CRUD and Password-protected Login system.
 - Secure password hashing using bcrypt.
 - Comprehensive test suite ensuring core stability.
+- **Enhanced UI/UX**: Card-based library, glassmorphism, and responsive design.
+- **Smart Features**: One-click fill from history and random picker for meal planning.
 
 ## Next Steps for User
 1. Ensure PostgreSQL is running and create a database named `ordering_db`.

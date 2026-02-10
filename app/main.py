@@ -245,6 +245,23 @@ async def create_dish(
     crud.create_dish(db, dish_data)
     return RedirectResponse(url="/", status_code=303)
 
+@app.get("/get-preference/{dish_id}")
+async def get_preference(
+    dish_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(login_required)
+):
+    pref = crud.get_last_item_preference(db, current_user.id, dish_id)
+    if pref:
+        return {
+            "taste": pref.taste,
+            "preferred_time": pref.preferred_time,
+            "location": pref.location,
+            "ingredients": pref.ingredients,
+            "remarks": pref.remarks
+        }
+    return {}
+
 @app.get("/history", response_class=HTMLResponse)
 async def history_page(
     request: Request, 

@@ -197,3 +197,10 @@ def get_order_history(db: Session):
 
 def get_audit_logs(db: Session):
     return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).all()
+
+def get_last_item_preference(db: Session, user_id: int, dish_id: int):
+    return db.query(models.OrderItem)\
+        .filter(models.OrderItem.user_id == user_id)\
+        .filter(models.OrderItem.dish_id == dish_id)\
+        .order_by(models.OrderItem.created_at.desc())\
+        .first()
