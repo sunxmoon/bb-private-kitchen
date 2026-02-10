@@ -295,6 +295,7 @@ async def my_orders_page(
 @app.post("/update-item/{item_id}")
 async def update_item(
     item_id: int,
+    request: Request,
     taste: str = Form(None),
     preferred_time: str = Form(None),
     location: str = Form(None),
@@ -304,6 +305,10 @@ async def update_item(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(login_required)
 ):
+    # Check query params for status/msg (used by swipe gestures)
+    query_status = request.query_params.get("status")
+    query_msg = request.query_params.get("msg", "已更新")
+    
     item_data = {
         "taste": taste,
         "preferred_time": preferred_time,
@@ -311,10 +316,14 @@ async def update_item(
         "ingredients": ingredients,
         "remarks": remarks
     }
-    if status:
-        item_data["status"] = status
+    
+    # Prioritize form status if provided, otherwise use query status
+    final_status = status or query_status
+    if final_status:
+        item_data["status"] = final_status
+        
     crud.update_order_item(db, item_id, item_data, current_user.id)
-    return RedirectResponse(url="/my-orders?msg=已更新", status_code=303)
+    return RedirectResponse(url=f"/my-orders?msg={query_msg}", status_code=303)
 
 @app.post("/complete-item/{item_id}")
 async def complete_item(

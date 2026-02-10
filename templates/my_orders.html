@@ -21,11 +21,17 @@
         <div class="space-y-4">
             {% for item in current_order.items %}
             <!-- Order Item Wrapper (for swipe) -->
-            <div class="relative group overflow-hidden rounded-3xl swipe-container" data-id="{{ item.id }}">
-                <!-- Swipe Action Background -->
-                <div class="absolute inset-0 bg-green-500 flex items-center px-6 text-white transition-opacity opacity-0 swipe-action-bg">
-                    <i class="fas fa-check-circle text-2xl"></i>
-                    <span class="ml-3 font-bold">标记完成</span>
+            <div class="relative group overflow-hidden rounded-3xl swipe-container" data-id="{{ item.id }}" data-status="{{ item.status }}">
+                <!-- Swipe Right Action (Complete/Undo) -->
+                <div class="absolute inset-y-0 left-0 w-full flex items-center px-6 text-white transition-opacity opacity-0 z-0 swipe-right-bg {% if item.status == 'completed' %}bg-orange-500{% else %}bg-green-500{% endif %}">
+                    <i class="fas {% if item.status == 'completed' %}fa-undo{% else %}fa-check-circle{% endif %} text-2xl"></i>
+                    <span class="ml-3 font-bold">{% if item.status == 'completed' %}撤回完成{% else %}标记完成{% endif %}</span>
+                </div>
+
+                <!-- Swipe Left Action (Delete) -->
+                <div class="absolute inset-y-0 right-0 w-full flex items-center justify-end px-6 text-white transition-opacity opacity-0 z-0 bg-red-500 swipe-left-bg">
+                    <span class="mr-3 font-bold">删除订单</span>
+                    <i class="fas fa-trash-alt text-2xl"></i>
                 </div>
 
                 <!-- Order Item Card -->
@@ -60,7 +66,7 @@
                         <!-- Info -->
                         <div class="flex-1 min-w-0 pr-16">
                             <div class="flex items-center space-x-2 mb-0.5">
-                                <h3 class="font-bold text-gray-800 truncate">{{ item.dish.name }}</h3>
+                                <h3 class="font-bold text-gray-800 truncate {% if item.status == 'completed' %}line-through opacity-50{% endif %}">{{ item.dish.name }}</h3>
                                 <span class="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-bold whitespace-nowrap">{{ item.user.name }}</span>
                             </div>
                             
@@ -79,13 +85,13 @@
 
                         <!-- Quick Actions (Right Side) -->
                         <div class="absolute right-3 top-3 bottom-3 flex flex-col justify-between py-1" onclick="event.stopPropagation()">
-                            <button onclick="submitAction('/complete-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-500 hover:bg-green-500 hover:text-white transition-colors">
-                                <i class="fas fa-check text-xs"></i>
+                            <button onclick="submitAction('/update-item/{{ item.id }}?status={% if item.status == 'completed' %}pending{% else %}completed{% endif %}')" class="w-7 h-7 flex items-center justify-center rounded-lg {% if item.status == 'completed' %}bg-orange-50 text-orange-500{% else %}bg-green-50 text-green-500{% endif %} hover:shadow-md transition-all">
+                                <i class="fas {% if item.status == 'completed' %}fa-undo{% else %}fa-check{% endif %} text-xs"></i>
                             </button>
-                            <button onclick="submitAction('/delay-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors">
+                            <button onclick="submitAction('/delay-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:shadow-md transition-all">
                                 <i class="fas fa-history text-[10px]"></i>
                             </button>
-                            <button onclick="if(confirm('确定删除吗？')) submitAction('/delete-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors">
+                            <button onclick="if(confirm('确定删除吗？')) submitAction('/delete-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:shadow-md transition-all">
                                 <i class="fas fa-trash-alt text-xs"></i>
                             </button>
                         </div>
@@ -93,7 +99,7 @@
                 </div>
 
                 <!-- Expanded Details (Hidden by default) -->
-                <div id="details-{{ item.id }}" class="hidden border-t border-gray-50 bg-gray-50/50 p-4 transition-all animate-in slide-in-from-top duration-200">
+                <div id="details-{{ item.id }}" class="hidden border-t border-gray-50 bg-gray-50/50 p-4 transition-all animate-in slide-in-from-top duration-200 relative z-10">
                     <form action="/update-item/{{ item.id }}" method="POST" class="space-y-4">
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1">
@@ -182,13 +188,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     swipeContainers.forEach(container => {
         const card = container.querySelector('.swipe-card');
-        const actionBg = container.querySelector('.swipe-action-bg');
+        const rightBg = container.querySelector('.swipe-right-bg');
+        const leftBg = container.querySelector('.swipe-left-bg');
         const itemId = container.dataset.id;
+        const currentStatus = container.dataset.status;
         
         let startX = 0;
         let currentX = 0;
         let isSwiping = false;
-        const threshold = 100; // px to trigger action
+        const threshold = 80; // px to trigger action
 
         card.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
@@ -200,11 +208,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isSwiping) return;
             currentX = e.touches[0].clientX - startX;
             
-            // Only allow swiping to the right
-            if (currentX > 0) {
+            // Visual feedback
+            if (currentX > 0) { // Swiping Right (Complete/Undo)
                 const moveX = Math.min(currentX, 150);
                 card.style.transform = `translateX(${moveX}px)`;
-                actionBg.style.opacity = Math.min(moveX / threshold, 1);
+                rightBg.style.opacity = Math.min(moveX / threshold, 1);
+                leftBg.style.opacity = '0';
+            } else if (currentX < 0) { // Swiping Left (Delete)
+                const moveX = Math.max(currentX, -150);
+                card.style.transform = `translateX(${moveX}px)`;
+                leftBg.style.opacity = Math.min(Math.abs(moveX) / threshold, 1);
+                rightBg.style.opacity = '0';
             }
         }, { passive: true });
 
@@ -215,15 +229,30 @@ document.addEventListener('DOMContentLoaded', () => {
             card.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
             
             if (currentX > threshold) {
-                // Trigger complete action
+                // Trigger toggle complete/undo
                 card.style.transform = `translateX(100%)`;
+                const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+                const msg = newStatus === 'completed' ? '已标记完成' : '已撤回完成';
                 setTimeout(() => {
-                    submitAction(`/complete-item/${itemId}`);
+                    submitAction(`/update-item/${itemId}?status=${newStatus}&msg=${msg}`);
+                }, 200);
+            } else if (currentX < -threshold) {
+                // Trigger delete with confirm
+                card.style.transform = `translateX(-100%)`;
+                setTimeout(() => {
+                    if (confirm('确定要删除这条点单吗？')) {
+                        submitAction(`/delete-item/${itemId}`);
+                    } else {
+                        // Reset if cancelled
+                        card.style.transform = `translateX(0)`;
+                        leftBg.style.opacity = '0';
+                    }
                 }, 200);
             } else {
                 // Reset position
                 card.style.transform = `translateX(0)`;
-                actionBg.style.opacity = '0';
+                rightBg.style.opacity = '0';
+                leftBg.style.opacity = '0';
             }
             currentX = 0;
         });
