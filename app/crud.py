@@ -100,7 +100,7 @@ def create_dish(db: Session, dish: schemas.DishCreate):
     db_dish = models.Dish(**dish.model_dump())
     db.add(db_dish)
     db.flush()
-    create_audit_log(db, dish.created_by, "创建菜品", "dishes", db_dish.id, None, dish.model_dump(), commit=False)
+    create_audit_log(db, dish.created_by, f"创造了新菜《{db_dish.name}》", "dishes", db_dish.id, None, dish.model_dump(), commit=False)
     db.commit()
     db.refresh(db_dish)
     return db_dish
@@ -115,7 +115,7 @@ def update_dish(db: Session, dish_id: int, dish_data: Dict[str, Any], user_id: i
         setattr(db_dish, key, value)
     
     new_values = {c.name: getattr(db_dish, c.name) for c in db_dish.__table__.columns}
-    create_audit_log(db, user_id, "更新菜品", "dishes", dish_id, old_values, new_values, commit=False)
+    create_audit_log(db, user_id, f"修改了菜品《{db_dish.name}》", "dishes", dish_id, old_values, new_values, commit=False)
     db.commit()
     db.refresh(db_dish)
     return db_dish
@@ -127,7 +127,7 @@ def delete_dish(db: Session, dish_id: int, user_id: int):
     
     old_values = {c.name: getattr(db_dish, c.name) for c in db_dish.__table__.columns}
     db_dish.is_active = False
-    create_audit_log(db, user_id, "删除菜品", "dishes", dish_id, old_values, {"is_active": False}, commit=False)
+    create_audit_log(db, user_id, f"下架了菜品《{db_dish.name}》", "dishes", dish_id, old_values, {"is_active": False}, commit=False)
     db.commit()
     return db_dish
 
@@ -148,7 +148,14 @@ def add_order_item(db: Session, item: schemas.OrderItemCreate):
     db_item = models.OrderItem(**item.model_dump())
     db.add(db_item)
     db.flush()
-    create_audit_log(db, item.user_id, "添加点餐", "order_items", db_item.id, None, item.model_dump(), commit=False)
+    
+    # Enrich log with dish name
+    dish = get_dish(db, item.dish_id)
+    dish_name = dish.name if dish else "未知菜品"
+    new_values = item.model_dump()
+    new_values["dish_name"] = dish_name
+    
+    create_audit_log(db, item.user_id, f"点了《{dish_name}》", "order_items", db_item.id, None, new_values, commit=False)
     db.commit()
     db.refresh(db_item)
     return db_item
@@ -163,8 +170,12 @@ def update_order_item(db: Session, item_id: int, item_data: Dict[str, Any], user
         if key in old_values:
             setattr(db_item, key, value)
     
+    # Enrich log with dish name
+    dish_name = db_item.dish.name if db_item.dish else "未知菜品"
     new_values = {c.name: getattr(db_item, c.name) for c in db_item.__table__.columns}
-    create_audit_log(db, user_id, "更新点餐", "order_items", item_id, old_values, new_values, commit=False)
+    new_values["dish_name"] = dish_name
+    
+    create_audit_log(db, user_id, f"修改了《{dish_name}》", "order_items", item_id, old_values, new_values, commit=False)
     db.commit()
     db.refresh(db_item)
     return db_item
@@ -174,9 +185,13 @@ def delete_order_item(db: Session, item_id: int, user_id: int):
     if not db_item:
         return None
     
+    # Enrich log with dish name
+    dish_name = db_item.dish.name if db_item.dish else "未知菜品"
     old_values = {c.name: getattr(db_item, c.name) for c in db_item.__table__.columns}
+    old_values["dish_name"] = dish_name
+    
     db.delete(db_item)
-    create_audit_log(db, user_id, "删除点餐", "order_items", item_id, old_values, None, commit=False)
+    create_audit_log(db, user_id, f"取消了《{dish_name}》", "order_items", item_id, old_values, None, commit=False)
     db.commit()
     return True
 
