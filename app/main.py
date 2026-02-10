@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Request, Form, UploadFile, File, Cookie, Response
+from fastapi import FastAPI, Depends, Request, Form, UploadFile, File, Cookie, Response, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -7,9 +7,15 @@ from typing import Optional
 import shutil
 import os
 import uuid
+import aiofiles
+import logging
 
 from . import models, schemas, crud
 from .database import engine, get_db
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -19,15 +25,37 @@ app = FastAPI(title="宝宝的私房菜馆")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# Dependency to get current user
+async def get_current_user(db: Session = Depends(get_db), user_id: Optional[str] = Cookie(None)):
+    if not user_id:
+        return None
+    try:
+        user = crud.get_user(db, int(user_id))
+        return user
+    except (ValueError, TypeError):
+        return None
+
+# Dependency that requires login
+async def login_required(user: Optional[models.User] = Depends(get_current_user)):
+    if not user:
+        raise HTTPException(status_code=303, detail="Not logged in", headers={"Location": "/login"})
+    return user
+
+# Exception handler for login redirect
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 303 and exc.headers and "Location" in exc.headers:
+        return RedirectResponse(url=exc.headers["Location"], status_code=303)
+    return templates.TemplateResponse("error.html", {"request": request, "detail": exc.detail}, status_code=exc.status_code)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global error: {exc}", exc_info=True)
+    return templates.TemplateResponse("error.html", {"request": request, "detail": "系统出现意外错误，请稍后再试。"}, status_code=500)
+
 # Helper to get common context
-def get_common_context(db: Session, user_id: Optional[int] = None):
+def get_common_context(db: Session, current_user: Optional[models.User] = None):
     users = crud.get_users(db)
-    current_user = None
-    if user_id:
-        current_user = crud.get_user(db, int(user_id))
-    
-    # If no current user and users exist, we don't default anymore to force login if needed
-    # but for existing templates that expect current_user_id, we'll provide it if possible
     return {
         "users": users,
         "current_user": current_user,
@@ -50,7 +78,7 @@ async def login(
         return RedirectResponse(url="/login?error=1", status_code=303)
     
     response = RedirectResponse(url="/", status_code=303)
-    response.set_cookie(key="user_id", value=str(user.id))
+    response.set_cookie(key="user_id", value=str(user.id), httponly=True, samesite="lax")
     return response
 
 @app.get("/logout")
@@ -60,12 +88,12 @@ async def logout(response: Response):
     return response
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request, db: Session = Depends(get_db), user_id: Optional[str] = Cookie(None)):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    context = get_common_context(db, user_id)
-    if not context["current_user"]:
-        return RedirectResponse(url="/login", status_code=303)
+async def read_root(
+    request: Request, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(login_required)
+):
+    context = get_common_context(db, current_user)
     dishes = crud.get_dishes(db)
     current_order = crud.get_current_order(db)
     return templates.TemplateResponse("index.html", {
@@ -76,24 +104,36 @@ async def read_root(request: Request, db: Session = Depends(get_db), user_id: Op
     })
 
 @app.get("/users", response_class=HTMLResponse)
-async def users_page(request: Request, db: Session = Depends(get_db), user_id: Optional[str] = Cookie(None)):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    context = get_common_context(db, user_id)
+async def users_page(
+    request: Request, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(login_required)
+):
+    context = get_common_context(db, current_user)
     return templates.TemplateResponse("users.html", {
         "request": request,
         **context
     })
+
+async def save_upload_file(file: UploadFile, destination_dir: str) -> str:
+    os.makedirs(destination_dir, exist_ok=True)
+    file_extension = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{file_extension}"
+    filepath = os.path.join(destination_dir, filename)
+    
+    async with aiofiles.open(filepath, 'wb') as out_file:
+        while content := await file.read(1024 * 1024):  # 1MB chunks
+            await out_file.write(content)
+            
+    return f"/{filepath}"
 
 @app.post("/create-user")
 async def create_user(
     name: str = Form(...),
     password: str = Form("666"),
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
     user_data = schemas.UserCreate(name=name, password=password)
     crud.create_user(db, user_data)
     return RedirectResponse(url="/users", status_code=303)
@@ -105,59 +145,45 @@ async def update_user(
     password: str = Form(None),
     background_file: UploadFile = File(None),
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    
     update_data = {}
     if name: update_data["name"] = name
     if password: update_data["password"] = password
     
     if background_file and background_file.filename:
-        # Get old user to delete old background
-        old_user = crud.get_user(db, target_user_id)
-        if old_user and old_user.background_image_url:
-            delete_old_image(old_user.background_image_url)
+        old_target_user = crud.get_user(db, target_user_id)
+        if old_target_user and old_target_user.background_image_url:
+            delete_old_image(old_target_user.background_image_url)
 
-        file_extension = os.path.splitext(background_file.filename)[1]
-        filename = f"bg_{uuid.uuid4()}{file_extension}"
-        filepath = os.path.join("static/backgrounds", filename)
-        os.makedirs("static/backgrounds", exist_ok=True)
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(background_file.file, buffer)
-        update_data["background_image_url"] = f"/static/backgrounds/{filename}"
+        image_url = await save_upload_file(background_file, "static/backgrounds")
+        update_data["background_image_url"] = image_url
     
-    crud.update_user(db, target_user_id, update_data, int(user_id))
+    crud.update_user(db, target_user_id, update_data, current_user.id)
     return RedirectResponse(url="/users", status_code=303)
 
 @app.post("/delete-user/{target_user_id}")
 async def delete_user(
     target_user_id: int,
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    
-    # Don't delete yourself
-    if int(user_id) == target_user_id:
+    if current_user.id == target_user_id:
         return RedirectResponse(url="/users?error=self_delete", status_code=303)
         
-    crud.delete_user(db, target_user_id, int(user_id))
+    crud.delete_user(db, target_user_id, current_user.id)
     return RedirectResponse(url="/users", status_code=303)
 
 @app.get("/order", response_class=HTMLResponse)
-async def order_page(request: Request, db: Session = Depends(get_db), user_id: Optional[str] = Cookie(None)):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    context = get_common_context(db, user_id)
-    if not context["current_user"]:
-        return RedirectResponse(url="/login", status_code=303)
-    
+async def order_page(
+    request: Request, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(login_required)
+):
+    context = get_common_context(db, current_user)
     current_order = crud.get_current_order(db)
     if not current_order:
-        current_order = crud.create_order(db, schemas.OrderCreate(created_by=context["current_user_id"]))
+        current_order = crud.create_order(db, schemas.OrderCreate(created_by=current_user.id))
     
     dishes = crud.get_dishes(db)
     return templates.TemplateResponse("order.html", {
@@ -177,19 +203,16 @@ async def add_item(
     ingredients: str = Form(None),
     remarks: str = Form(None),
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
     current_order = crud.get_current_order(db)
     if not current_order:
-        current_order = crud.create_order(db, schemas.OrderCreate(created_by=current_user_id))
+        current_order = crud.create_order(db, schemas.OrderCreate(created_by=current_user.id))
     
     item_data = schemas.OrderItemCreate(
         order_id=current_order.id,
         dish_id=dish_id,
-        user_id=current_user_id,
+        user_id=current_user.id,
         taste=taste,
         preferred_time=preferred_time,
         location=location,
@@ -205,35 +228,28 @@ async def create_dish(
     description: str = Form(None),
     file: UploadFile = File(None),
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
     image_url = None
     if file and file.filename:
-        file_extension = os.path.splitext(file.filename)[1]
-        filename = f"{uuid.uuid4()}{file_extension}"
-        filepath = os.path.join("static/uploads", filename)
-        os.makedirs("static/uploads", exist_ok=True)
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        image_url = f"/static/uploads/{filename}"
+        image_url = await save_upload_file(file, "static/uploads")
     
     dish_data = schemas.DishCreate(
         name=name,
         description=description,
         image_url=image_url,
-        created_by=current_user_id
+        created_by=current_user.id
     )
     crud.create_dish(db, dish_data)
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/history", response_class=HTMLResponse)
-async def history_page(request: Request, db: Session = Depends(get_db), user_id: Optional[str] = Cookie(None)):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    context = get_common_context(db, user_id)
+async def history_page(
+    request: Request, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(login_required)
+):
+    context = get_common_context(db, current_user)
     orders = crud.get_order_history(db)
     logs = crud.get_audit_logs(db)
     return templates.TemplateResponse("history.html", {
@@ -244,10 +260,12 @@ async def history_page(request: Request, db: Session = Depends(get_db), user_id:
     })
 
 @app.get("/my-orders", response_class=HTMLResponse)
-async def my_orders_page(request: Request, db: Session = Depends(get_db), user_id: Optional[str] = Cookie(None)):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    context = get_common_context(db, user_id)
+async def my_orders_page(
+    request: Request, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(login_required)
+):
+    context = get_common_context(db, current_user)
     current_order = crud.get_current_order(db)
     return templates.TemplateResponse("my_orders.html", {
         "request": request,
@@ -265,11 +283,8 @@ async def update_item(
     remarks: str = Form(None),
     status: str = Form(None),
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
     item_data = {
         "taste": taste,
         "preferred_time": preferred_time,
@@ -279,62 +294,53 @@ async def update_item(
     }
     if status:
         item_data["status"] = status
-    crud.update_order_item(db, item_id, item_data, current_user_id)
+    crud.update_order_item(db, item_id, item_data, current_user.id)
     return RedirectResponse(url="/my-orders", status_code=303)
 
 @app.post("/complete-item/{item_id}")
 async def complete_item(
     item_id: int,
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
-    crud.update_order_item(db, item_id, {"status": "completed"}, current_user_id)
+    crud.update_order_item(db, item_id, {"status": "completed"}, current_user.id)
     return RedirectResponse(url="/my-orders", status_code=303)
 
 @app.post("/delay-item/{item_id}")
 async def delay_item(
     item_id: int,
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
-    crud.update_order_item(db, item_id, {"status": "delayed"}, current_user_id)
+    crud.update_order_item(db, item_id, {"status": "delayed"}, current_user.id)
     return RedirectResponse(url="/my-orders", status_code=303)
 
 @app.post("/delete-item/{item_id}")
 async def delete_item(
     item_id: int,
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
-    crud.delete_order_item(db, item_id, current_user_id)
+    crud.delete_order_item(db, item_id, current_user.id)
     return RedirectResponse(url="/my-orders", status_code=303)
 
 @app.post("/delete-order/{order_id}")
 async def delete_order(
     order_id: int,
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
-    crud.delete_order(db, order_id, current_user_id)
+    crud.delete_order(db, order_id, current_user.id)
     return RedirectResponse(url="/my-orders", status_code=303)
 
 def delete_old_image(image_url: Optional[str]):
     if image_url and (image_url.startswith("/static/uploads/") or image_url.startswith("/static/backgrounds/")):
         relative_path = image_url.lstrip("/")
         if os.path.exists(relative_path):
-            os.remove(relative_path)
+            try:
+                os.remove(relative_path)
+            except Exception as e:
+                logger.error(f"Error deleting file {relative_path}: {e}")
 
 @app.post("/update-dish/{dish_id}")
 async def update_dish(
@@ -343,41 +349,27 @@ async def update_dish(
     description: str = Form(None),
     file: UploadFile = File(None),
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
     dish_data = {"name": name, "description": description}
     
     if file and file.filename:
-        # Get old dish to delete old image
         old_dish = crud.get_dish(db, dish_id)
         if old_dish and old_dish.image_url:
             delete_old_image(old_dish.image_url)
 
-        file_extension = os.path.splitext(file.filename)[1]
-        filename = f"{uuid.uuid4()}{file_extension}"
-        filepath = os.path.join("static/uploads", filename)
-        os.makedirs("static/uploads", exist_ok=True)
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        dish_data["image_url"] = f"/static/uploads/{filename}"
+        image_url = await save_upload_file(file, "static/uploads")
+        dish_data["image_url"] = image_url
     
-    crud.update_dish(db, dish_id, dish_data, current_user_id)
+    crud.update_dish(db, dish_id, dish_data, current_user.id)
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/delete-dish/{dish_id}")
 async def delete_dish(
     dish_id: int,
     db: Session = Depends(get_db),
-    user_id: Optional[str] = Cookie(None)
+    current_user: models.User = Depends(login_required)
 ):
-    if not user_id:
-        return RedirectResponse(url="/login", status_code=303)
-    current_user_id = int(user_id)
-    # We keep the image for soft-deleted dishes in audit logs usually, 
-    # but if needed we could delete it here. Since it's a soft delete, 
-    # we'll keep the image so it shows up in history/logs if needed.
-    crud.delete_dish(db, dish_id, current_user_id)
+    crud.delete_dish(db, dish_id, current_user.id)
     return RedirectResponse(url="/", status_code=303)
+
