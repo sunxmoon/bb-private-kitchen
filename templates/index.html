@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Create New Dish (Collapsible) -->
+    <details class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <summary class="p-4 font-bold text-gray-800 flex justify-between items-center cursor-pointer list-none">
+            <span>+ 新建私房菜</span>
+            <i class="fas fa-chevron-right text-gray-300 transition-transform"></i>
+        </summary>
+        <form action="/create-dish" method="POST" enctype="multipart/form-data" class="p-4 pt-0 space-y-4 border-t border-gray-50 mt-2">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">菜名</label>
+                <input type="text" name="name" required class="w-full bg-gray-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500" placeholder="想吃什么？">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">描述/特色</label>
+                <textarea name="description" class="w-full bg-gray-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500 h-20" placeholder="比如：外焦里嫩，多放葱花..."></textarea>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">传一张图 (可选)</label>
+                <input type="file" name="file" accept="image/*" class="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100">
+            </div>
+            <button type="submit" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition">保存到菜单库</button>
+        </form>
+    </details>
+
+    <!-- Dish Library -->
+    <section>
+        <h2 class="text-lg font-bold text-gray-800 mb-4">菜品仓库</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for dish in dishes %}
+            <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                <div class="flex">
+                    {% if dish.image_url %}
+                    <img src="{{ dish.image_url }}" class="w-32 h-32 object-cover">
+                    {% else %}
+                    <div class="w-32 h-32 bg-gray-100 flex items-center justify-center text-gray-300">
+                        <i class="fas fa-image text-2xl"></i>
+                    </div>
+                    {% endif %}
+                    <div class="p-3 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-sm truncate">{{ dish.name }}</h3>
+                            <p class="text-xs text-gray-400 line-clamp-2 mb-2">{{ dish.description or '无介绍' }}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <a href="/order?dish_id={{ dish.id }}" class="flex-1 text-center bg-orange-50 text-orange-500 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-500 hover:text-white transition">
+                                选择
+                            </a>
+                            <button onclick="document.getElementById('edit-dish-{{ dish.id }}').classList.toggle('hidden')" class="bg-gray-50 text-gray-500 px-3 py-1.5 rounded-lg text-xs hover:bg-gray-200 transition">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="if(confirm('确定要删除这道菜吗？')) { document.getElementById('delete-dish-form-{{ dish.id }}').submit(); }" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-xs hover:bg-red-500 hover:text-white transition">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Dish Form (Hidden by default) -->
+                <div id="edit-dish-{{ dish.id }}" class="hidden p-4 border-t border-gray-50 bg-gray-50">
+                    <form action="/update-dish/{{ dish.id }}" method="POST" enctype="multipart/form-data" class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase">菜名</label>
+                            <input type="text" name="name" value="{{ dish.name }}" required class="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase">描述</label>
+                            <textarea name="description" class="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-orange-500 h-16">{{ dish.description or '' }}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase">更换图片</label>
+                            <input type="file" name="file" accept="image/*" class="w-full text-xs text-gray-400">
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="submit" class="flex-1 bg-orange-500 text-white py-2 rounded-lg font-bold text-xs">保存修改</button>
+                            <button type="button" onclick="document.getElementById('edit-dish-{{ dish.id }}').classList.add('hidden')" class="px-4 py-2 border border-gray-200 rounded-lg text-xs">取消</button>
+                        </div>
+                    </form>
+                </div>
+                <form id="delete-dish-form-{{ dish.id }}" action="/delete-dish/{{ dish.id }}" method="POST" class="hidden"></form>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<style>
+    details[open] summary i { transform: rotate(90deg); }
+</style>
+{% endblock %}

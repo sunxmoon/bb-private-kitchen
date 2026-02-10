@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="bg-orange-500 text-white p-6 -mx-4 -mt-4 rounded-b-3xl shadow-lg mb-8">
+        <h2 class="text-2xl font-bold">我想吃...</h2>
+        <p class="text-orange-100 text-sm mt-1">告诉大厨你的心里话</p>
+    </div>
+
+    <!-- Selection Form -->
+    <section class="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+        <form action="/add-item" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">选择菜品</label>
+                <select name="dish_id" required class="w-full bg-gray-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500 appearance-none">
+                    <option value="">-- 请选择 --</option>
+                    {% for dish in dishes %}
+                    <option value="{{ dish.id }}" {% if request.query_params.get('dish_id')|int == dish.id %}selected{% endif %}>{{ dish.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">口味偏好</label>
+                    <input type="text" name="taste" class="w-full bg-gray-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500" placeholder="微辣/咸鲜...">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">想吃的时间</label>
+                    <input type="text" name="preferred_time" class="w-full bg-gray-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500" placeholder="今晚/明天中午...">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">想吃的地点</label>
+                    <input type="text" name="location" class="w-full bg-gray-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500" placeholder="客厅/阳台/餐厅...">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">原材料备注</label>
+                    <input type="text" name="ingredients" class="w-full bg-gray-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500" placeholder="少盐/不要香菜...">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">其他备注</label>
+                <textarea name="remarks" class="w-full bg-gray-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500 h-24" placeholder="还有什么想说的？"></textarea>
+            </div>
+
+            <button type="submit" class="w-full bg-gradient-to-r from-orange-400 to-orange-600 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition mt-4">确认点餐</button>
+        </form>
+    </section>
+</div>
+
+<style>
+    details[open] summary i { transform: rotate(90deg); }
+</style>
+{% endblock %}
