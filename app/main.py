@@ -331,7 +331,7 @@ async def delete_order(
     return RedirectResponse(url="/my-orders", status_code=303)
 
 def delete_old_image(image_url: Optional[str]):
-    if image_url and image_url.startswith("/static/uploads/"):
+    if image_url and (image_url.startswith("/static/uploads/") or image_url.startswith("/static/backgrounds/")):
         relative_path = image_url.lstrip("/")
         if os.path.exists(relative_path):
             os.remove(relative_path)

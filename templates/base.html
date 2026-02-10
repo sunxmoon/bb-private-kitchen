@@ -15,23 +15,38 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 40vh;
+            height: 50vh;
             background-image: url('{{ current_user.background_image_url }}');
             background-size: cover;
             background-position: center;
             z-index: -1;
-            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%);
-            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%);
         }
+        .bg-custom::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, rgba(243, 244, 246, 0) 0%, rgba(243, 244, 246, 1) 100%);
+        }
+        .nav-transparent {
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        body { background-color: #f3f4f6; }
+        {% else %}
+        body { background-color: #f3f4f6; }
         {% endif %}
     </style>
 </head>
-<body class="bg-gray-100 pb-20">
+<body class="pb-20">
     {% if current_user and current_user.background_image_url %}
     <div class="bg-custom"></div>
     {% endif %}
     {% if current_user %}
-    <nav class="bg-white shadow-md p-4 sticky top-0 z-50 flex justify-between items-center">
+    <nav class="{% if current_user.background_image_url %}nav-transparent{% else %}bg-white shadow-md{% endif %} p-4 sticky top-0 z-50 flex justify-between items-center">
         <div class="flex flex-col">
             <h1 class="text-xl font-bold text-orange-500">宝宝的私房菜馆</h1>
             <span class="text-xs text-gray-500">欢迎, {{ current_user.name }}</span>
