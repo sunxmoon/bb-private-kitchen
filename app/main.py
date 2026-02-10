@@ -103,14 +103,30 @@ async def update_user(
     target_user_id: int,
     name: str = Form(None),
     password: str = Form(None),
+    background_file: UploadFile = File(None),
     db: Session = Depends(get_db),
     user_id: Optional[str] = Cookie(None)
 ):
     if not user_id:
         return RedirectResponse(url="/login", status_code=303)
+    
     update_data = {}
     if name: update_data["name"] = name
     if password: update_data["password"] = password
+    
+    if background_file and background_file.filename:
+        # Get old user to delete old background
+        old_user = crud.get_user(db, target_user_id)
+        if old_user and old_user.background_image_url:
+            delete_old_image(old_user.background_image_url)
+
+        file_extension = os.path.splitext(background_file.filename)[1]
+        filename = f"bg_{uuid.uuid4()}{file_extension}"
+        filepath = os.path.join("static/backgrounds", filename)
+        os.makedirs("static/backgrounds", exist_ok=True)
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(background_file.file, buffer)
+        update_data["background_image_url"] = f"/static/backgrounds/{filename}"
     
     crud.update_user(db, target_user_id, update_data, int(user_id))
     return RedirectResponse(url="/users", status_code=303)

@@ -11,9 +11,11 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
+    background_image_url: Optional[str] = None
 
 class User(UserBase):
     id: int
+    background_image_url: Optional[str] = None
     created_at: datetime
     class Config:
         orm_mode = True
