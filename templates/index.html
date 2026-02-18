@@ -1,7 +1,242 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="space-y-8">
-    <h2 class="text-xl font-black text-gray-800">私房菜仓库</h2>
-    <!-- Dish Library logic... -->
+    <!-- Create New Dish (Collapsible) -->
+    <details class="{% if current_user.background_image_url %}glass-card{% else %}bg-white{% endif %} rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300">
+        <summary class="p-5 font-bold text-gray-800 flex justify-between items-center cursor-pointer list-none">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center">
+                    <i class="fas fa-plus text-sm"></i>
+                </div>
+                <span>添加我的私房菜</span>
+            </div>
+            <i class="fas fa-chevron-right text-gray-300 transition-transform duration-300"></i>
+        </summary>
+        <form action="/create-dish" method="POST" enctype="multipart/form-data" class="p-5 pt-0 space-y-4 border-t border-white/50 mt-2">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 px-1">菜品名称</label>
+                    <input type="text" name="name" required class="w-full bg-gray-50/50 border border-gray-100 rounded-2xl p-3 text-sm focus:ring-2 focus:ring-orange-500 transition-all outline-none" placeholder="比如：秘制红烧肉">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 px-1">上传美照</label>
+                    <input type="file" name="file" accept="image/*" class="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-500 file:text-white hover:file:bg-orange-600 transition">
+                </div>
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 px-1">味道描述</label>
+                <textarea name="description" class="w-full bg-gray-50/50 border border-gray-100 rounded-2xl p-3 text-sm focus:ring-2 focus:ring-orange-500 transition-all outline-none h-24" placeholder="写下这道菜的灵魂之处..."></textarea>
+            </div>
+            <button type="submit" class="w-full bg-orange-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-200 active:scale-[0.98] transition-all duration-200">
+                收录到私房菜库
+            </button>
+        </form>
+    </details>
+
+    <!-- Dish Library -->
+    <section>
+        <div class="flex items-center justify-between mb-6 px-1">
+            <h2 class="text-xl font-black text-gray-800">私房菜仓库</h2>
+            <span class="text-[10px] bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-bold uppercase">{{ dishes|length }} 道佳肴</span>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for dish in dishes %}
+            <div class="{% if current_user.background_image_url %}glass-card{% else %}bg-white shadow-sm{% endif %} rounded-[2rem] overflow-hidden border border-white/50 card-hover active-press flex flex-col group">
+                <div class="relative overflow-hidden aspect-[4/3]">
+                    {% if dish.image_url %}
+                    <img src="{{ dish.image_url }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                    {% else %}
+                    <div class="w-full h-full bg-gray-100 flex flex-col items-center justify-center text-gray-300 space-y-2">
+                        <i class="fas fa-utensils text-4xl opacity-20"></i>
+                        <span class="text-[10px] font-bold uppercase tracking-widest opacity-50">等待拍摄</span>
+                    </div>
+                    {% endif %}
+                    <div class="absolute top-3 right-3 flex space-x-2">
+                        <button onclick="document.getElementById('edit-dish-{{ dish.id }}').classList.toggle('hidden')" class="w-8 h-8 bg-white/90 backdrop-blur-md text-gray-600 rounded-full flex items-center justify-center text-xs shadow-sm hover:bg-orange-500 hover:text-white transition-colors">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button onclick="if(confirm('确定要删除这道菜吗？')) { document.getElementById('delete-dish-form-{{ dish.id }}').submit(); }" class="w-8 h-8 bg-white/90 backdrop-blur-md text-red-500 rounded-full flex items-center justify-center text-xs shadow-sm hover:bg-red-500 hover:text-white transition-colors">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-5 flex-1 flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="font-black text-gray-800 text-lg mb-1 group-hover:text-orange-500 transition-colors">{{ dish.name }}</h3>
+                        <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed">{{ dish.description or '这道菜很神秘，主厨还没留下描述...' }}</p>
+                    </div>
+                    
+                    <div class="mt-auto">
+                        <a href="/order?dish_id={{ dish.id }}" class="block w-full text-center bg-orange-500 text-white py-3 rounded-2xl text-sm font-black shadow-md shadow-orange-100 hover:shadow-orange-200 transition-all">
+                            立即点餐
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Edit Dish Form (Hidden by default) -->
+                <div id="edit-dish-{{ dish.id }}" class="hidden p-5 border-t border-gray-100 bg-gray-50/80 backdrop-blur-sm">
+                    <form action="/update-dish/{{ dish.id }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 px-1">菜名</label>
+                            <input type="text" name="name" value="{{ dish.name }}" required class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 px-1">描述</label>
+                            <textarea name="description" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-500 h-20">{{ dish.description or '' }}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 px-1">更新照片</label>
+                            <input type="file" name="file" accept="image/*" class="w-full text-xs text-gray-400">
+                        </div>
+                        <div class="flex space-x-3 pt-2">
+                            <button type="submit" class="flex-1 bg-gray-800 text-white py-3 rounded-xl font-bold text-xs active:scale-95 transition">保存</button>
+                            <button type="button" onclick="document.getElementById('edit-dish-{{ dish.id }}').classList.add('hidden')" class="px-6 py-3 border border-gray-300 rounded-xl text-xs font-bold text-gray-500 active:scale-95 transition">取消</button>
+                        </div>
+                    </form>
+                </div>
+                <form id="delete-dish-form-{{ dish.id }}" action="/delete-dish/{{ dish.id }}" method="POST" class="hidden"></form>
+            </div>
+            {% endfor %}
+        </div>
+        </section>
 </div>
+
+<!-- Random Picker FAB -->
+<div class="fixed bottom-24 right-6 z-40">
+    <button onclick="openRandomPicker()" class="w-16 h-16 bg-orange-500 text-white rounded-full shadow-2xl shadow-orange-300 flex items-center justify-center active:scale-90 transition-transform duration-200 group">
+        <div class="absolute -top-10 right-0 bg-gray-800 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none uppercase font-black tracking-widest">纠结吃什么？</div>
+        <i class="fas fa-dice text-2xl animate-pulse"></i>
+    </button>
+</div>
+
+<!-- Random Picker Modal -->
+<div id="random-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6 transition-opacity duration-300">
+    <div class="bg-white rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="random-content">
+        <div class="p-8 text-center space-y-6">
+            <div class="space-y-2">
+                <h3 class="text-2xl font-black text-gray-800">今天吃什么？</h3>
+                <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">让命运来决定你的味蕾</p>
+            </div>
+            
+            <div class="relative py-10">
+                <div class="absolute inset-0 bg-orange-50 rounded-[2rem] -rotate-2"></div>
+                <div class="relative z-10 space-y-4">
+                    <div id="spinner-box" class="h-20 flex items-center justify-center overflow-hidden">
+                        <span id="spinner-text" class="text-3xl font-black text-orange-500">???</span>
+                    </div>
+                    <div id="spinner-img-box" class="w-32 h-32 mx-auto rounded-2xl bg-gray-200 overflow-hidden hidden shadow-inner border-4 border-white">
+                        <img id="spinner-img" src="" class="w-full h-full object-cover">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col space-y-3 pt-2">
+                <button id="spin-btn" onclick="startSpin()" class="w-full bg-orange-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-orange-100 active:scale-95 transition">
+                    开始翻牌
+                </button>
+                <a id="order-random-btn" href="" class="hidden w-full bg-gray-800 text-white py-4 rounded-2xl font-black active:scale-95 transition">
+                    就吃这个了！
+                </a>
+                <button onclick="closeRandomPicker()" class="w-full text-gray-400 text-xs font-bold uppercase tracking-widest py-2">
+                    我再想想
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dishes = [
+        {% for dish in dishes %}
+        { id: {{ dish.id }}, name: "{{ dish.name }}", image: "{{ dish.image_url or '' }}" },
+        {% endfor %}
+    ];
+
+    function openRandomPicker() {
+        const modal = document.getElementById('random-modal');
+        const content = document.getElementById('random-content');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+        
+        // Reset state
+        document.getElementById('spinner-text').innerText = '???';
+        document.getElementById('spinner-text').classList.remove('hidden');
+        document.getElementById('spinner-img-box').classList.add('hidden');
+        document.getElementById('spin-btn').classList.remove('hidden');
+        document.getElementById('order-random-btn').classList.add('hidden');
+    }
+
+    function closeRandomPicker() {
+        const modal = document.getElementById('random-modal');
+        const content = document.getElementById('random-content');
+        content.classList.add('scale-95', 'opacity-0');
+        content.classList.remove('scale-100', 'opacity-100');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    let isSpinning = false;
+    function startSpin() {
+        if (isSpinning || dishes.length === 0) return;
+        isSpinning = true;
+        
+        const text = document.getElementById('spinner-text');
+        const imgBox = document.getElementById('spinner-img-box');
+        const img = document.getElementById('spinner-img');
+        const spinBtn = document.getElementById('spin-btn');
+        const orderBtn = document.getElementById('order-random-btn');
+        
+        spinBtn.disabled = true;
+        spinBtn.innerText = '正在寻觅中...';
+        
+        let counter = 0;
+        const maxTicks = 20;
+        const interval = setInterval(() => {
+            const randomDish = dishes[Math.floor(Math.random() * dishes.length)];
+            text.innerText = randomDish.name;
+            counter++;
+            
+            if (counter >= maxTicks) {
+                clearInterval(interval);
+                finishSpin(randomDish);
+            }
+        }, 100);
+    }
+
+    function finishSpin(dish) {
+        const text = document.getElementById('spinner-text');
+        const imgBox = document.getElementById('spinner-img-box');
+        const img = document.getElementById('spinner-img');
+        const spinBtn = document.getElementById('spin-btn');
+        const orderBtn = document.getElementById('order-random-btn');
+        
+        if (dish.image) {
+            img.src = dish.image;
+            imgBox.classList.remove('hidden');
+            text.classList.add('hidden');
+        }
+        
+        spinBtn.classList.add('hidden');
+        orderBtn.classList.remove('hidden');
+        orderBtn.href = `/order?dish_id=${dish.id}`;
+        orderBtn.innerText = `点一份 ${dish.name}！`;
+        
+        isSpinning = false;
+    }
+</script>
+
+<style>
+    details[open] summary i { transform: rotate(90deg); }
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
 {% endblock %}

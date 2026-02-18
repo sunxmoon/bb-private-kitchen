@@ -1,7 +1,155 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="space-y-8 pb-10">
-    <h2 class="text-2xl font-black text-gray-800">食光足迹</h2>
-    <!-- Stats Dashboard and History/Audit Logs logic... -->
+    <div class="flex justify-between items-center px-1">
+        <h2 class="text-2xl font-black text-gray-800">食光足迹</h2>
+        <span class="text-[10px] bg-gray-200 text-gray-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest">家庭美食档案</span>
+    </div>
+
+    <!-- Stats Dashboard -->
+    <div class="grid grid-cols-2 gap-4">
+        <div class="{% if current_user.background_image_url %}glass-card{% else %}bg-white{% endif %} p-5 rounded-[2rem] shadow-sm border border-white/50">
+            <p class="text-[10px] font-black text-gray-400 uppercase mb-1">点餐总量</p>
+            <div class="flex items-baseline space-x-1">
+                <span class="text-3xl font-black text-orange-500">{{ stats.total_items }}</span>
+                <span class="text-xs text-gray-400 font-bold">道菜</span>
+            </div>
+        </div>
+        <div class="{% if current_user.background_image_url %}glass-card{% else %}bg-white{% endif %} p-5 rounded-[2rem] shadow-sm border border-white/50">
+            <p class="text-[10px] font-black text-gray-400 uppercase mb-1">点单次数</p>
+            <div class="flex items-baseline space-x-1">
+                <span class="text-3xl font-black text-blue-500">{{ stats.total_orders }}</span>
+                <span class="text-xs text-gray-400 font-bold">场</span>
+            </div>
+        </div>
+        
+        <!-- Popular Dishes -->
+        <div class="col-span-2 {% if current_user.background_image_url %}glass-card{% else %}bg-white{% endif %} p-6 rounded-[2.5rem] shadow-sm border border-white/50">
+            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center">
+                <i class="fas fa-crown text-orange-400 mr-2"></i> 最受欢迎排行
+            </h3>
+            <div class="space-y-3">
+                {% for name, count in stats.top_dishes %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="w-5 h-5 flex items-center justify-center rounded-full bg-orange-100 text-orange-500 text-[10px] font-black">{{ loop.index }}</span>
+                        <span class="text-sm font-bold text-gray-700">{{ name }}</span>
+                    </div>
+                    <span class="text-xs text-gray-400 font-medium">{{ count }} 次被点</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="flex p-1 bg-gray-200/50 backdrop-blur-md rounded-2xl">
+        <button onclick="switchTab('history-list')" id="tab-history-list" class="flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-white text-gray-800 shadow-sm">点单记录</button>
+        <button onclick="switchTab('audit-logs')" id="tab-audit-logs" class="flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-gray-500">操作动态</button>
+    </div>
+
+    <!-- History Tab -->
+    <div id="content-history-list" class="space-y-6">
+        {% for order in orders %}
+        <div class="relative pl-8 before:absolute before:left-[11px] before:top-0 before:bottom-0 before:w-0.5 before:bg-gray-200 last:before:bottom-8">
+            <!-- Timeline Marker -->
+            <div class="absolute left-0 top-0 w-6 h-6 rounded-full bg-white border-4 border-orange-500 z-10"></div>
+            
+            <div class="mb-2">
+                <span class="text-xs font-black text-gray-400 tracking-tighter">{{ order.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
+            </div>
+
+            <div class="{% if current_user.background_image_url %}glass-card{% else %}bg-white shadow-sm{% endif %} rounded-[2rem] overflow-hidden border border-white/50 p-5">
+                <div class="space-y-4">
+                    {% for item in order.items %}
+                    <div class="flex items-start justify-between space-x-4 {% if not loop.last %}pb-4 border-b border-gray-50{% endif %}">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center space-x-2">
+                                <h4 class="font-black text-gray-800 text-sm truncate">{{ item.dish.name }}</h4>
+                                <span class="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{{ item.user.name }}</span>
+                            </div>
+                            {% if item.taste or item.remarks %}
+                            <p class="text-[10px] text-gray-400 mt-1 italic">
+                                {% if item.taste %}<span class="text-orange-400">#{{ item.taste }}</span>{% endif %}
+                                {{ item.remarks }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="text-right">
+                            {% if item.status == 'completed' %}
+                            <span class="text-[9px] font-black text-green-500 uppercase tracking-tighter">SUCCESS</span>
+                            {% elif item.status == 'delayed' %}
+                            <span class="text-[9px] font-black text-blue-500 uppercase tracking-tighter">DELAYED</span>
+                            {% else %}
+                            <span class="text-[9px] font-black text-gray-300 uppercase tracking-tighter">PENDING</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Audit Logs Tab -->
+    <div id="content-audit-logs" class="hidden space-y-4">
+        {% for log in logs %}
+        <div class="{% if current_user.background_image_url %}glass-card{% else %}bg-white{% endif %} p-4 rounded-2xl shadow-sm border border-white/50 flex items-start space-x-4">
+            <div class="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 flex-shrink-0">
+                {% if '创建' in log.action or 'CREATE' in log.action %}
+                <i class="fas fa-magic text-orange-400"></i>
+                {% elif '更新' in log.action or 'UPDATE' in log.action %}
+                <i class="fas fa-sync text-blue-400"></i>
+                {% elif '删除' in log.action or 'DELETE' in log.action %}
+                <i class="fas fa-trash-alt text-red-400"></i>
+                {% else %}
+                <i class="fas fa-bolt text-gray-400"></i>
+                {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-gray-800 font-bold">
+                        <span class="text-orange-500">{{ log.user.name }}</span> {{ log.action }}
+                    </p>
+                    <span class="text-[9px] text-gray-300 font-medium">{{ log.timestamp.strftime('%H:%M') }}</span>
+                </div>
+                
+                {% if log.new_values %}
+                <div class="mt-2 bg-gray-50/50 rounded-lg p-2 space-y-1">
+                    {% for k, v in log.new_values.items() %}
+                    {% if k not in ['id', 'created_at', 'updated_at', 'password', 'user_id', 'dish_id', 'order_id'] and v %}
+                    <p class="text-[9px] text-gray-400 flex justify-between">
+                        <span class="font-black uppercase opacity-50">{{ k }}:</span>
+                        <span class="text-gray-600 font-bold truncate ml-2">{{ v }}</span>
+                    </p>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 </div>
+
+<script>
+function switchTab(tabId) {
+    // Hide all contents
+    document.getElementById('content-history-list').classList.add('hidden');
+    document.getElementById('content-audit-logs').classList.add('hidden');
+    
+    // Reset buttons
+    const btnHistory = document.getElementById('tab-history-list');
+    const btnAudit = document.getElementById('tab-audit-logs');
+    
+    btnHistory.className = "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-gray-500";
+    btnAudit.className = "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-gray-500";
+    
+    // Show active
+    document.getElementById('content-' + tabId).classList.remove('hidden');
+    document.getElementById('tab-' + tabId).className = "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-white text-gray-800 shadow-sm";
+}
+</script>
 {% endblock %}

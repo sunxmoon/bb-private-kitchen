@@ -1,7 +1,272 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="space-y-6">
-    <h2 class="text-xl font-bold text-gray-800">当前点单</h2>
-    <!-- Current Order logic... -->
+    <!-- Current Order Header -->
+    <div class="flex justify-between items-center px-1">
+        <h2 class="text-xl font-bold text-gray-800">当前点单</h2>
+        <div class="flex items-center space-x-3">
+            <span class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded-md">ID: #{{ current_order.id if current_order else 'None' }}</span>
+            {% if current_order %}
+            <button onclick="if(confirm('确定要清空并删除整个点单吗？')) { document.getElementById('delete-order-form').submit(); }"
+                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                <i class="fas fa-trash-alt text-sm"></i>
+            </button>
+            <form id="delete-order-form" action="/delete-order/{{ current_order.id }}" method="POST" class="hidden"></form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if current_order and current_order.items %}
+        <div class="space-y-4">
+            {% for item in current_order.items %}
+            <!-- Order Item Wrapper (for swipe) -->
+            <div class="relative group overflow-hidden rounded-3xl swipe-container" data-id="{{ item.id }}" data-status="{{ item.status }}">
+                <!-- Swipe Right Action (Complete/Undo) -->
+                <div class="absolute inset-y-0 left-0 w-full flex items-center px-6 text-white transition-opacity opacity-0 z-0 swipe-right-bg {% if item.status == 'completed' %}bg-orange-500{% else %}bg-green-500{% endif %}">
+                    <i class="fas {% if item.status == 'completed' %}fa-undo{% else %}fa-check-circle{% endif %} text-2xl"></i>
+                    <span class="ml-3 font-bold">{% if item.status == 'completed' %}撤回完成{% else %}标记完成{% endif %}</span>
+                </div>
+
+                <!-- Swipe Left Action (Delete) -->
+                <div class="absolute inset-y-0 right-0 w-full flex items-center justify-end px-6 text-white transition-opacity opacity-0 z-0 bg-red-500 swipe-left-bg">
+                    <span class="mr-3 font-bold">删除订单</span>
+                    <i class="fas fa-trash-alt text-2xl"></i>
+                </div>
+
+                <!-- Order Item Card -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-transform duration-300 relative z-10 swipe-card" 
+                     style="touch-action: pan-y;"
+                     onclick="toggleDetails('details-{{ item.id }}')">
+                    <!-- Card Main Content -->
+                    <div class="p-3 flex items-start space-x-3 relative cursor-pointer">
+                        <!-- Image -->
+                        <div class="relative">
+                            {% if item.dish.image_url %}
+                            <img src="{{ item.dish.image_url }}" class="w-20 h-20 rounded-2xl object-cover shadow-sm">
+                            {% else %}
+                            <div class="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-300">
+                                <i class="fas fa-utensils text-2xl"></i>
+                            </div>
+                            {% endif %}
+                            <!-- Status Badge -->
+                            <div class="absolute -top-1 -left-1">
+                                {% if item.status == 'completed' %}
+                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-[10px] text-white ring-2 ring-white">
+                                    <i class="fas fa-check"></i>
+                                </span>
+                                {% elif item.status == 'delayed' %}
+                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white ring-2 ring-white">
+                                    <i class="fas fa-clock"></i>
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Info -->
+                        <div class="flex-1 min-w-0 pr-16">
+                            <div class="flex items-center space-x-2 mb-0.5">
+                                <h3 class="font-bold text-gray-800 truncate {% if item.status == 'completed' %}line-through opacity-50{% endif %}">{{ item.dish.name }}</h3>
+                                <span class="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-bold whitespace-nowrap">{{ item.user.name }}</span>
+                            </div>
+                            
+                            <div class="flex items-center text-orange-500 text-[11px] font-bold mb-1">
+                                <i class="far fa-clock mr-1"></i>
+                                <span>{{ item.preferred_time or '尽快' }}</span>
+                            </div>
+
+                            <!-- Secondary Info (Small Text) -->
+                            <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-gray-400">
+                                <p class="truncate"><span class="text-orange-300 mr-1">●</span>口味: {{ item.taste or '-' }}</p>
+                                <p class="truncate"><span class="text-orange-300 mr-1">●</span>地点: {{ item.location or '-' }}</p>
+                                <p class="col-span-2 truncate"><span class="text-orange-300 mr-1">●</span>备注: {{ item.remarks or '无' }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions (Right Side) -->
+                        <div class="absolute right-3 top-3 bottom-3 flex flex-col justify-between py-1" onclick="event.stopPropagation()">
+                            <button onclick="submitAction('/update-item/{{ item.id }}?status={% if item.status == 'completed' %}pending{% else %}completed{% endif %}')" class="w-7 h-7 flex items-center justify-center rounded-lg {% if item.status == 'completed' %}bg-orange-50 text-orange-500{% else %}bg-green-50 text-green-500{% endif %} hover:shadow-md transition-all">
+                                <i class="fas {% if item.status == 'completed' %}fa-undo{% else %}fa-check{% endif %} text-xs"></i>
+                            </button>
+                            <button onclick="submitAction('/delay-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:shadow-md transition-all">
+                                <i class="fas fa-history text-[10px]"></i>
+                            </button>
+                            <button onclick="if(confirm('确定删除吗？')) submitAction('/delete-item/{{ item.id }}')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:shadow-md transition-all">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expanded Details (Hidden by default) -->
+                <div id="details-{{ item.id }}" class="hidden border-t border-gray-50 bg-gray-50/50 p-4 transition-all animate-in slide-in-from-top duration-200 relative z-10">
+                    <form action="/update-item/{{ item.id }}" method="POST" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">口味偏好</label>
+                                <input type="text" name="taste" value="{{ item.taste or '' }}" placeholder="微辣/咸鲜"
+                                       class="w-full bg-white border-none rounded-xl px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-orange-500 transition-all outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">期望时间</label>
+                                <input type="text" name="preferred_time" value="{{ item.preferred_time or '' }}" placeholder="12:00 / 今晚"
+                                       class="w-full bg-white border-none rounded-xl px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-orange-500 transition-all outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">享用地点</label>
+                                <input type="text" name="location" value="{{ item.location or '' }}" placeholder="客厅/阳台"
+                                       class="w-full bg-white border-none rounded-xl px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-orange-500 transition-all outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">原材料备注</label>
+                                <input type="text" name="ingredients" value="{{ item.ingredients or '' }}" placeholder="少盐/不吃姜"
+                                       class="w-full bg-white border-none rounded-xl px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-orange-500 transition-all outline-none">
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">补充备注</label>
+                            <textarea name="remarks" placeholder="还有什么想说的..."
+                                      class="w-full bg-white border-none rounded-xl px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-orange-500 transition-all outline-none h-20 resize-none">{{ item.remarks or '' }}</textarea>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">当前状态</label>
+                            <select name="status" class="w-full bg-white border-none rounded-xl px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-orange-500 transition-all outline-none appearance-none">
+                                <option value="pending" {% if item.status == 'pending' %}selected{% endif %}>🕒 等待中</option>
+                                <option value="completed" {% if item.status == 'completed' %}selected{% endif %}>✅ 已完成</option>
+                                <option value="delayed" {% if item.status == 'delayed' %}selected{% endif %}>⏳ 已延期</option>
+                            </select>
+                        </div>
+                        <div class="flex space-x-3 pt-2">
+                            <button type="submit" class="flex-1 bg-gradient-to-r from-orange-400 to-orange-600 text-white font-bold py-3 rounded-2xl shadow-md active:scale-95 transition">保存修改</button>
+                            <button type="button" onclick="toggleDetails('details-{{ item.id }}')" class="px-6 py-3 bg-gray-200 text-gray-600 font-bold rounded-2xl active:scale-95 transition">收起</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="flex flex-col items-center justify-center py-20 text-gray-400 space-y-4">
+            <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center">
+                <i class="fas fa-utensils text-4xl text-gray-200"></i>
+            </div>
+            <p class="font-medium">暂时还没有人点菜哦</p>
+            <a href="/order" class="text-orange-500 font-bold text-sm bg-orange-50 px-6 py-2 rounded-full shadow-sm">立即去点餐</a>
+        </div>
+    {% endif %}
 </div>
+
+<!-- Helper Form for Quick Actions -->
+<form id="action-form" method="POST" class="hidden"></form>
+
+<script>
+function toggleDetails(id) {
+    const el = document.getElementById(id);
+    const isHidden = el.classList.contains('hidden');
+    
+    // Close other open details
+    document.querySelectorAll('[id^="details-"]').forEach(item => {
+        if (item.id !== id) item.classList.add('hidden');
+    });
+
+    if (isHidden) {
+        el.classList.remove('hidden');
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
+function submitAction(url) {
+    const form = document.getElementById('action-form');
+    form.action = url;
+    form.submit();
+}
+
+// Swipe Gesture Logic
+document.addEventListener('DOMContentLoaded', () => {
+    const swipeContainers = document.querySelectorAll('.swipe-container');
+    
+    swipeContainers.forEach(container => {
+        const card = container.querySelector('.swipe-card');
+        const rightBg = container.querySelector('.swipe-right-bg');
+        const leftBg = container.querySelector('.swipe-left-bg');
+        const itemId = container.dataset.id;
+        const currentStatus = container.dataset.status;
+        
+        let startX = 0;
+        let currentX = 0;
+        let isSwiping = false;
+        const threshold = 80; // px to trigger action
+
+        card.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isSwiping = true;
+            card.style.transition = 'none';
+        }, { passive: true });
+
+        card.addEventListener('touchmove', (e) => {
+            if (!isSwiping) return;
+            currentX = e.touches[0].clientX - startX;
+            
+            // Visual feedback
+            if (currentX > 0) { // Swiping Right (Complete/Undo)
+                const moveX = Math.min(currentX, 150);
+                card.style.transform = `translateX(${moveX}px)`;
+                rightBg.style.opacity = Math.min(moveX / threshold, 1);
+                leftBg.style.opacity = '0';
+            } else if (currentX < 0) { // Swiping Left (Delete)
+                const moveX = Math.max(currentX, -150);
+                card.style.transform = `translateX(${moveX}px)`;
+                leftBg.style.opacity = Math.min(Math.abs(moveX) / threshold, 1);
+                rightBg.style.opacity = '0';
+            }
+        }, { passive: true });
+
+        card.addEventListener('touchend', () => {
+            if (!isSwiping) return;
+            isSwiping = false;
+            
+            card.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            
+            if (currentX > threshold) {
+                // Trigger toggle complete/undo
+                card.style.transform = `translateX(100%)`;
+                const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+                const msg = newStatus === 'completed' ? '已标记完成' : '已撤回完成';
+                setTimeout(() => {
+                    submitAction(`/update-item/${itemId}?status=${newStatus}&msg=${msg}`);
+                }, 200);
+            } else if (currentX < -threshold) {
+                // Trigger delete with confirm
+                card.style.transform = `translateX(-100%)`;
+                setTimeout(() => {
+                    if (confirm('确定要删除这条点单吗？')) {
+                        submitAction(`/delete-item/${itemId}`);
+                    } else {
+                        // Reset if cancelled
+                        card.style.transform = `translateX(0)`;
+                        leftBg.style.opacity = '0';
+                    }
+                }, 200);
+            } else {
+                // Reset position
+                card.style.transform = `translateX(0)`;
+                rightBg.style.opacity = '0';
+                leftBg.style.opacity = '0';
+            }
+            currentX = 0;
+        });
+    });
+});
+</script>
+
+<style>
+    @keyframes slide-down {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-slide-down {
+        animation: slide-down 0.2s ease-out forwards;
+    }
+</style>
 {% endblock %}

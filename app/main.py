@@ -138,7 +138,7 @@ async def create_user(
 ):
     user_data = schemas.UserCreate(name=name, password=password)
     crud.create_user(db, user_data)
-    return RedirectResponse(url="/users?msg= 新成员已加入！", status_code=303)
+    return RedirectResponse(url="/users?msg=新成员已加入！", status_code=303)
 
 @app.post("/update-user/{target_user_id}")
 async def update_user(
@@ -162,7 +162,7 @@ async def update_user(
         update_data["background_image_url"] = image_url
     
     crud.update_user(db, target_user_id, update_data, current_user.id)
-    return RedirectResponse(url="/users?msg= 信息已更新", status_code=303)
+    return RedirectResponse(url="/users?msg=信息已更新", status_code=303)
 
 @app.post("/delete-user/{target_user_id}")
 async def delete_user(
@@ -174,7 +174,7 @@ async def delete_user(
         return RedirectResponse(url="/users?error=self_delete", status_code=303)
         
     crud.delete_user(db, target_user_id, current_user.id)
-    return RedirectResponse(url="/users?msg= 用户已移除", status_code=303)
+    return RedirectResponse(url="/users?msg=用户已移除", status_code=303)
 
 @app.get("/order", response_class=HTMLResponse)
 async def order_page(
@@ -424,3 +424,4 @@ async def delete_dish(
 ):
     crud.delete_dish(db, dish_id, current_user.id)
     return RedirectResponse(url="/?msg=菜品已下架", status_code=303)
+

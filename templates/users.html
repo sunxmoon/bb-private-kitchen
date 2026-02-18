@@ -1,7 +1,100 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="mb-6 flex justify-between items-center">
     <h2 class="text-2xl font-bold text-gray-800">用户管理</h2>
-    <!-- User management logic... -->
+    <button onclick="document.getElementById('add-user-modal').classList.remove('hidden')" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm shadow-sm">
+        <i class="fas fa-user-plus mr-1"></i> 添加用户
+    </button>
 </div>
+
+{% if request.query_params.get('error') == 'self_delete' %}
+<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+    <span class="block sm:inline">不能删除当前正在使用的用户。</span>
+</div>
+{% endif %}
+
+<div class="space-y-4">
+    {% for user in users %}
+    <div class="{% if current_user.background_image_url %}glass-card{% else %}bg-white{% endif %} p-5 rounded-[2rem] shadow-sm border border-white/50 flex justify-between items-center group card-hover">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-500 overflow-hidden">
+                {% if user.background_image_url %}
+                <img src="{{ user.background_image_url }}" class="w-full h-full object-cover">
+                {% else %}
+                <i class="fas fa-user text-xl"></i>
+                {% endif %}
+            </div>
+            <div>
+                <h3 class="font-black text-gray-800 text-lg">{{ user.name }}</h3>
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">加入于: {{ user.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+        </div>
+        <div class="flex space-x-2">
+            <button onclick="editUser('{{ user.id }}', '{{ user.name }}')" class="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all shadow-sm">
+                <i class="fas fa-pen text-sm"></i>
+            </button>
+            <form action="/delete-user/{{ user.id }}" method="POST" onsubmit="return confirm('确定要删除用户 {{ user.name }} 吗？')">
+                <button type="submit" class="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                    <i class="fas fa-trash-alt text-sm"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Add User Modal -->
+<div id="add-user-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
+    <div class="bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl animate-in zoom-in duration-300">
+        <h3 class="text-2xl font-black mb-6 text-gray-800">添加新成员</h3>
+        <form action="/create-user" method="POST" class="space-y-5">
+            <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">成员称呼</label>
+                <input type="text" name="name" required class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="怎么称谓这位吃货？">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">初始密码</label>
+                <input type="password" name="password" value="666" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+            </div>
+            <div class="flex space-x-3 pt-4">
+                <button type="button" onclick="document.getElementById('add-user-modal').classList.add('hidden')" class="flex-1 py-4 text-gray-400 font-bold uppercase tracking-widest text-xs">取消</button>
+                <button type="submit" class="flex-[2] bg-orange-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-100 active:scale-95 transition">立即加入</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="edit-user-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
+    <div class="bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl animate-in zoom-in duration-300">
+        <h3 class="text-2xl font-black mb-6 text-gray-800">编辑成员信息</h3>
+        <form id="edit-user-form" action="" method="POST" enctype="multipart/form-data" class="space-y-5">
+            <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">成员称呼</label>
+                <input type="text" id="edit-name" name="name" required class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">专属背景图</label>
+                <input type="file" name="background_file" accept="image/*" class="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-100 file:text-gray-600 hover:file:bg-orange-100 transition">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">重置密码 (可选)</label>
+                <input type="password" name="password" placeholder="留空则不修改" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+            </div>
+            <div class="flex space-x-3 pt-4">
+                <button type="button" onclick="document.getElementById('edit-user-modal').classList.add('hidden')" class="flex-1 py-4 text-gray-400 font-bold uppercase tracking-widest text-xs">取消</button>
+                <button type="submit" class="flex-[2] bg-blue-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-100 active:scale-95 transition">保存修改</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function editUser(id, name) {
+        document.getElementById('edit-user-form').action = '/update-user/' + id;
+        document.getElementById('edit-name').value = name;
+        document.getElementById('edit-user-modal').classList.remove('hidden');
+    }
+</script>
 {% endblock %}

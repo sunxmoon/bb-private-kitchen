@@ -51,7 +51,7 @@ def create_user(db: Session, user: schemas.UserCreate):
     db_user = models.User(name=user.name, password=hashed_password)
     db.add(db_user)
     db.flush() # Get ID before commit
-    create_audit_log(db, db_user.id, "创建用 户", "users", db_user.id, None, {"name": db_user.name}, commit=False)
+    create_audit_log(db, db_user.id, "创建用户", "users", db_user.id, None, {"name": db_user.name}, commit=False)
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -100,7 +100,7 @@ def create_dish(db: Session, dish: schemas.DishCreate):
     db_dish = models.Dish(**dish.model_dump())
     db.add(db_dish)
     db.flush()
-    create_audit_log(db, dish.created_by, f" 创造了新菜《{db_dish.name}》", "dishes", db_dish.id, None, dish.model_dump(), commit=False)
+    create_audit_log(db, dish.created_by, f"创造了新菜《{db_dish.name}》", "dishes", db_dish.id, None, dish.model_dump(), commit=False)
     db.commit()
     db.refresh(db_dish)
     return db_dish
@@ -115,7 +115,7 @@ def update_dish(db: Session, dish_id: int, dish_data: Dict[str, Any], user_id: i
         setattr(db_dish, key, value)
     
     new_values = {c.name: getattr(db_dish, c.name) for c in db_dish.__table__.columns}
-    create_audit_log(db, user_id, f"修改了菜 品《{db_dish.name}》", "dishes", dish_id, old_values, new_values, commit=False)
+    create_audit_log(db, user_id, f"修改了菜品《{db_dish.name}》", "dishes", dish_id, old_values, new_values, commit=False)
     db.commit()
     db.refresh(db_dish)
     return db_dish
@@ -127,7 +127,7 @@ def delete_dish(db: Session, dish_id: int, user_id: int):
     
     old_values = {c.name: getattr(db_dish, c.name) for c in db_dish.__table__.columns}
     db_dish.is_active = False
-    create_audit_log(db, user_id, f"下架了菜 品《{db_dish.name}》", "dishes", dish_id, old_values, {"is_active": False}, commit=False)
+    create_audit_log(db, user_id, f"下架了菜品《{db_dish.name}》", "dishes", dish_id, old_values, {"is_active": False}, commit=False)
     db.commit()
     return db_dish
 
@@ -139,7 +139,7 @@ def create_order(db: Session, order: schemas.OrderCreate):
     db_order = models.Order(**order.model_dump())
     db.add(db_order)
     db.flush()
-    create_audit_log(db, order.created_by, " 创建订单", "orders", db_order.id, None, order.model_dump(), commit=False)
+    create_audit_log(db, order.created_by, "创建订单", "orders", db_order.id, None, order.model_dump(), commit=False)
     db.commit()
     db.refresh(db_order)
     return db_order
@@ -151,7 +151,7 @@ def add_order_item(db: Session, item: schemas.OrderItemCreate):
     
     # Enrich log with dish name
     dish = get_dish(db, item.dish_id)
-    dish_name = dish.name if dish else "未知 菜品"
+    dish_name = dish.name if dish else "未知菜品"
     new_values = item.model_dump()
     new_values["dish_name"] = dish_name
     

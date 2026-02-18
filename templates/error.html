@@ -1,8 +1,14 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="max-w-md mx-auto mt-20 p-8 bg-white rounded-2xl shadow-lg text-center">
+    <div class="text-red-500 mb-4">
+        <i class="fas fa-exclamation-triangle text-6xl"></i>
+    </div>
     <h1 class="text-2xl font-bold text-gray-800 mb-2">抱歉，出错了</h1>
     <p class="text-gray-600 mb-8">{{ detail }}</p>
-    <a href="/" class="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold">返回首页</a>
+    <a href="/" class="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-orange-600 transition-colors inline-block">
+        返回首页
+    </a>
 </div>
 {% endblock %}

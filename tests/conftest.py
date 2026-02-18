@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.database import Base, get_db
 from app.main import app
+from app import security
 
 # Use in-memory SQLite for tests
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -19,12 +20,14 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 @pytest.fixture(scope="function")
 def db():
+    # Create the database tables
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
+        # Drop the tables after the test
         Base.metadata.drop_all(bind=engine)
 
 @pytest.fixture(scope="function")
@@ -34,6 +37,7 @@ def client(db):
             yield db
         finally:
             pass
+    
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:
         yield c
