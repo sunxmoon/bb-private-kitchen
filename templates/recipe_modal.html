@@ -1,0 +1,156 @@
+<div class="card-elevated bg-white scale-in max-w-lg w-full relative !rounded-[var(--radius-lg)] overflow-hidden">
+    <div class="p-6 border-b border-stone-100 flex items-center justify-between sticky top-0 bg-white z-10 rounded-t-[var(--radius-lg)]">
+        <div>
+            <h3 class="text-lg font-black text-stone-800">{{ dish.name }} - 菜谱</h3>
+            {% if recipe %}
+            <div class="flex items-center gap-3 mt-1">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-orange-600">
+                    <i class="fas fa-signal mr-1"></i>{{ recipe.difficulty or '—' }}
+                </span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">
+                    <i class="far fa-clock mr-1"></i>{{ recipe.cook_time or '—' }}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        <div class="flex items-center gap-2">
+            {% if ai_available %}
+            <button
+                hx-post="/generate-recipe-modal/{{ dish.id }}"
+                hx-target="#modal-body"
+                hx-indicator="#ai-loading-overlay"
+                class="btn btn-ghost !w-9 !h-9 !p-0 rounded-xl text-orange-500 hover:bg-orange-50"
+                title="AI 重新生成"
+                onclick="document.getElementById('recipe-modal-content').classList.add('opacity-50')"
+            >
+                <i class="fas fa-robot"></i>
+            </button>
+            {% endif %}
+            <button onclick="closeModal('modal-container')" class="btn btn-ghost !w-9 !h-9 !p-0 rounded-xl">
+                <i class="fas fa-times text-stone-400"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="recipe-modal-content" class="p-6 overflow-y-auto max-h-[70vh] transition-opacity duration-300">
+        {% if not recipe and not edit_mode %}
+        <div class="py-12 flex flex-col items-center justify-center text-center space-y-4">
+            <div class="w-16 h-16 rounded-full bg-stone-50 flex items-center justify-center text-stone-200">
+                <i class="fas fa-book-open text-3xl"></i>
+            </div>
+            <div>
+                <p class="font-bold text-stone-600">暂无详细菜谱</p>
+                <p class="text-xs text-stone-400 mt-1">点击右上角 AI 机器人图标即刻开启创作</p>
+            </div>
+        </div>
+        {% elif edit_mode %}
+        <form hx-post="/update-recipe/{{ dish.id }}" hx-target="#modal-body" class="space-y-5 fade-in">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div>
+                <label class="input-label">食材（每行格式：用量 名称）</label>
+                <textarea name="recipe_ingredients" class="input h-32 resize-none font-mono text-xs" placeholder="500g 五花肉">{% if recipe %}{% for i in recipe.ingredients %}{{ i.amount }} {{ i.name }}
+{% endfor %}{% endif %}</textarea>
+            </div>
+            <div>
+                <label class="input-label">步骤（每行一步）</label>
+                <textarea name="recipe_steps" class="input h-40 resize-none font-mono text-xs" placeholder="第一步...">{% if recipe %}{% for s in recipe.steps %}{{ s }}
+{% endfor %}{% endif %}</textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="input-label">烹饪时长</label>
+                    <input type="text" name="recipe_cook_time" class="input" value="{{ recipe.cook_time if recipe else '' }}">
+                </div>
+                <div>
+                    <label class="input-label">难度</label>
+                    <select name="recipe_difficulty" class="input">
+                        <option value="简单" {% if recipe and recipe.difficulty == '简单' %}selected{% endif %}>简单</option>
+                        <option value="中等" {% if recipe and recipe.difficulty == '中等' %}selected{% endif %}>中等</option>
+                        <option value="困难" {% if recipe and recipe.difficulty == '困难' %}selected{% endif %}>困难</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="input-label">小贴士</label>
+                <textarea name="recipe_tips" class="input h-20 resize-none" placeholder="秘诀是...">{% if recipe and recipe.tips %}{% if recipe.tips is string %}{{ recipe.tips }}{% else %}{{ recipe.tips | join('\n') }}{% endif %}{% endif %}</textarea>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="btn btn-primary flex-1">保存菜谱</button>
+                <button type="button" hx-get="/recipe-editor/{{ dish.id }}" hx-target="#modal-body" class="btn btn-ghost flex-1">返回</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="space-y-6">
+            <section>
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-xs font-bold text-stone-400 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span> 食材清单
+                    </h4>
+                    <button hx-get="/recipe-editor/{{ dish.id }}?edit=1" hx-target="#modal-body" class="text-[10px] font-bold text-stone-400 hover:text-orange-500">
+                        <i class="fas fa-edit"></i> 修改
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                    {% for i in recipe.ingredients %}
+                    <div class="flex items-center justify-between border-b border-stone-50 pb-1">
+                        <span class="text-xs text-stone-700">{{ i.name }}</span>
+                        <span class="text-[10px] font-bold text-stone-400">{{ i.amount }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section>
+                <h4 class="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span> 烹饪步骤
+                </h4>
+                <div class="space-y-4">
+                    {% for s in recipe.steps %}
+                    <div class="flex gap-4">
+                        <span class="shrink-0 w-6 h-6 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center text-[10px] font-black">{{ loop.index }}</span>
+                        <p class="text-xs text-stone-600 leading-relaxed pt-0.5">{{ s }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            {% if recipe.tips %}
+            <section class="bg-stone-50 rounded-2xl p-4 border border-stone-100">
+                <h4 class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <i class="fas fa-lightbulb text-orange-400 text-[10px]"></i> 主厨秘籍
+                </h4>
+                <div class="space-y-2.5">
+                    {% if recipe.tips is string %}
+                    <div class="flex gap-2.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-orange-300 mt-1.5 shrink-0"></span>
+                        <p class="text-xs text-stone-600 leading-relaxed">{{ recipe.tips }}</p>
+                    </div>
+                    {% else %}
+                    {% for tip in recipe.tips %}
+                    <div class="flex gap-2.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-orange-300 mt-1.5 shrink-0"></span>
+                        <p class="text-xs text-stone-600 leading-relaxed">{{ tip }}</p>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="ai-loading-overlay" class="htmx-indicator absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center space-y-4">
+        <div class="w-16 h-16 relative">
+            <div class="absolute inset-0 border-4 border-orange-100 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-orange-500 rounded-full border-t-transparent animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+                <i class="fas fa-robot text-orange-500 animate-bounce"></i>
+            </div>
+        </div>
+        <div class="text-center">
+            <p class="text-sm font-black text-stone-800">主厨 AI 正在构思...</p>
+            <p class="text-[10px] text-stone-400 mt-1">调味中，请稍候</p>
+        </div>
+    </div>
+</div>

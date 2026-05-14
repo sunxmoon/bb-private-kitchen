@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-between">
+    <div>
+        <h2 class="text-xl font-black text-stone-800">今日菜单</h2>
+        <p class="text-xs text-stone-400 mt-0.5">今天想吃什么？</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <button onclick="openAddDishModal()" class="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105" style="background:var(--brand-bg);color:var(--brand)">
+            <i class="fas fa-plus"></i>
+        </button>
+        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-500">{{ dishes|length }} 道</span>
+    </div>
+</div>
+
+<div class="mb-4">
+    <div class="relative group">
+        <i class="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-orange-400 transition-colors z-10 pointer-events-none"></i>
+        <input type="text" id="dish-search" placeholder="搜索你心仪的菜品..."
+               class="input !pl-12 bg-white border-stone-200 focus:border-orange-300 focus:ring-4 focus:ring-orange-500/5 transition-all" 
+               oninput="filterDishes(this.value)">
+    </div>
+</div>
+
+<!-- Add Dish Modal -->
+<div id="add-dish-modal" class="hidden modal-overlay fixed inset-0 z-[70] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('add-dish-modal')">
+    <div class="card-elevated modal-content w-full max-w-sm p-6 overflow-hidden">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-black text-stone-800">收录新菜品</h3>
+            <button onclick="closeModal('add-dish-modal')" class="text-stone-400 hover:text-stone-600"><i class="fas fa-times"></i></button>
+        </div>
+        <form action="/create-dish" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div>
+                <label class="input-label">菜品名称 <span class="text-red-400">*</span></label>
+                <input type="text" name="name" required class="input" placeholder="比如：秘制红烧肉">
+            </div>
+            <div>
+                <label class="input-label">菜品描述</label>
+                <textarea name="description" class="input h-20 resize-none" placeholder="这道菜的特色是..."></textarea>
+            </div>
+            <div>
+                <label class="input-label">上传照片</label>
+                <input type="file" name="file" accept="image/*" class="text-sm text-stone-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-600 cursor-pointer">
+            </div>
+            <button type="submit" class="btn btn-primary w-full mt-2">确认收录</button>
+        </form>
+    </div>
+</div>
+
+{% if dishes %}
+<div id="dish-list-container" 
+     hx-get="/" 
+     hx-trigger="dishUpdated from:body" 
+     hx-select="#dish-list-container" 
+     hx-swap="outerHTML"
+     class="grid grid-cols-1 gap-3">
+    {% for dish in dishes %}
+    <div class="card p-3 flex items-center gap-4 slide-in group cursor-pointer hover:bg-stone-50 transition-colors"
+         style="animation-delay:{{ loop.index0 * 40 }}ms"
+         onclick="loadDishDetail({{ dish.id }})"
+         data-dish-name="{{ dish.name }}">
+
+        <div class="w-16 h-16 rounded-2xl overflow-hidden shrink-0 bg-stone-100 border border-stone-100">
+            {% if dish.image_url %}
+            <img src="{{ dish.image_url }}" alt="{{ dish.name }}" class="w-full h-full object-cover">
+            {% else %}
+            <div class="w-full h-full flex items-center justify-center">
+                <i class="fas fa-utensils text-stone-300"></i>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="flex-1 min-w-0 py-0.5">
+            <div class="flex items-center justify-between mb-0.5">
+                <h3 class="font-black text-stone-800 truncate">{{ dish.name }}</h3>
+                <div class="flex gap-1">
+                    {% if dish.recipe %}
+                    {% if dish.recipe.content.cook_time %}
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">
+                        <i class="far fa-clock mr-0.5"></i>{{ dish.recipe.content.cook_time }}
+                    </span>
+                    {% endif %}
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style="color:var(--brand);background:var(--brand-bg)">
+                        {{ dish.recipe.content.difficulty or '—' }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if dish.description %}
+            <p class="text-[11px] text-stone-400 truncate">{{ dish.description }}</p>
+            {% endif %}
+        </div>
+
+        <div class="flex gap-1 items-center">
+            <button
+                onclick="event.stopPropagation(); loadRecipe({{ dish.id }})"
+                class="btn btn-ghost btn-icon !w-9 !h-9 !min-h-0 rounded-xl"
+                title="查看菜谱"
+            >
+                <i class="fas fa-book-open text-xs text-stone-300 group-hover:text-orange-400 transition-colors"></i>
+            </button>
+            <i class="fas fa-chevron-right text-[10px] text-stone-200 ml-1 group-hover:translate-x-0.5 transition-transform"></i>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card p-16 flex flex-col items-center justify-center text-center">
+    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-bg);color:var(--brand)">
+        <i class="fas fa-utensils text-2xl"></i>
+    </div>
+    <p class="font-bold text-stone-600 text-lg mb-1">还没有菜品</p>
+    <p class="text-sm text-stone-400">点击上方「添加私房菜」收录第一道菜吧！</p>
+</div>
+{% endif %}
+
+<script>
+function openAddDishModal() {
+    openModal('add-dish-modal');
+}
+
+function filterDishes(q) {
+    q = q.toLowerCase().trim();
+    document.querySelectorAll('[data-dish-name]').forEach(function(el) {
+        el.style.display = !q || el.getAttribute('data-dish-name').toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+    });
+}
+
+(function() {
+    var p = new URLSearchParams(window.location.search);
+    if (p.has('edit')) {
+        loadDishDetail(p.get('edit'));
+    }
+})();
+</script>
+{% endblock %}

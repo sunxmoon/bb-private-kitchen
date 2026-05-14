@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-[80vh] flex flex-col items-center justify-center -mx-4 -mt-5 px-4">
+    <div class="w-full max-w-sm">
+        <div class="text-center mb-10">
+            <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg mx-auto mb-5 scale-in" style="background: linear-gradient(135deg, var(--brand), var(--brand-dark)); box-shadow: 0 10px 25px -5px color-mix(in srgb, var(--brand) 25%, transparent);">
+                <i class="fas fa-utensils"></i>
+            </div>
+            <h1 class="text-3xl font-black text-stone-800 tracking-tight">宝宝的私房菜馆</h1>
+            <p class="text-stone-400 font-medium mt-1 text-sm">登录后开始点餐</p>
+        </div>
+
+        {% if request.query_params.get('error') == 'user_not_found' %}
+        <div class="card p-4 mb-4 border border-red-200 bg-red-50 text-red-700 text-sm font-medium flex items-center gap-3" role="alert">
+            <i class="fas fa-exclamation-circle text-red-400"></i> 该用户不存在，请检查用户名
+        </div>
+        {% elif request.query_params.get('error') == 'wrong_password' %}
+        <div class="card p-4 mb-4 border border-red-200 bg-red-50 text-red-700 text-sm font-medium flex items-center gap-3" role="alert">
+            <i class="fas fa-exclamation-circle text-red-400"></i> 密码错误，请重试
+        </div>
+        {% elif request.query_params.get('error') %}
+        <div class="card p-4 mb-4 border border-red-200 bg-red-50 text-red-700 text-sm font-medium flex items-center gap-3" role="alert">
+            <i class="fas fa-exclamation-circle text-red-400"></i> 登录失败，请检查用户名和密码
+        </div>
+        {% endif %}
+
+        <form action="/login" method="POST" class="card p-6 space-y-5">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div>
+                <label class="input-label" for="name">用户名</label>
+                <input id="name" name="name" type="text" required
+                       class="input h-[48px]" placeholder="请输入用户名">
+            </div>
+            <div>
+                <label class="input-label" for="password">密码</label>
+                <div class="relative">
+                    <input id="password" name="password" type="password" required
+                           class="input pr-14 h-[48px]" placeholder="请输入密码">
+                    <button type="button" onclick="togglePassword()" class="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500 z-10 w-9 h-9 flex items-center justify-center" aria-label="切换密码可见性" tabindex="-1">
+                        <i class="fas fa-eye text-sm" id="password-icon"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-full py-3 text-base tracking-wide">
+                登录
+            </button>
+            <p class="text-center text-xs text-stone-300 font-medium">默认密码：666</p>
+        </form>
+    </div>
+</div>
+
+<script>
+function togglePassword() {
+    var input = document.getElementById('password');
+    var icon = document.getElementById('password-icon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash text-sm';
+    } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye text-sm';
+    }
+}
+</script>
+{% endblock %}

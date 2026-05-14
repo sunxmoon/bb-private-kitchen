@@ -1,0 +1,17 @@
+[Unit]
+Description=宝宝的私房菜馆 - Household Ordering System
+After=network.target postgresql.service
+
+[Service]
+User=sun
+Group=sun
+WorkingDirectory=/home/sun/llm/web_app
+Environment="PATH=/home/sun/.envs/app/bin"
+EnvironmentFile=/home/sun/llm/web_app/.env
+ExecStart=/home/sun/.envs/app/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

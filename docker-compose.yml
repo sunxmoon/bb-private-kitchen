@@ -1,0 +1,36 @@
+services:
+  web:
+    build: .
+    init: true
+    ports:
+      - "8002:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - GEMINI_HOST_URL=http://host.docker.internal:8765
+    volumes:
+      - .:/app
+      - uploads:/app/static/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    restart: unless-stopped
+    networks:
+      - public_access
+      - database_postgres
+
+networks:
+  public_access:
+  database_postgres:
+    external: true
+    name: postgresql_default
+
+volumes:
+  uploads:

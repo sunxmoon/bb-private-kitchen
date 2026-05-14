@@ -1,0 +1,74 @@
+{% if error %}
+<div class="text-xs text-red-400 p-3 text-center">{{ error }}</div>
+{% elif recipe %}
+<div class="recipe-content space-y-4">
+    <div class="flex items-center gap-4 text-xs font-medium text-stone-500">
+        <span><i class="far fa-clock mr-1"></i>{{ recipe.cook_time }}</span>
+        <span class="w-px h-3 bg-stone-200"></span>
+        <span><i class="fas fa-signal mr-1"></i>{{ recipe.difficulty }}</span>
+    </div>
+
+    <div>
+        <h4 class="text-xs font-bold text-stone-600 mb-2 flex items-center gap-1.5">
+            <i class="fas fa-drumstick-bite text-orange-400"></i> 食材
+        </h4>
+        <ul class="space-y-1">
+            {% for ingredient in recipe.ingredients %}
+            <li class="text-xs text-stone-600 flex items-center gap-2">
+                <span class="w-1 h-1 rounded-full bg-stone-300"></span>
+                <span>{{ ingredient.amount }} {{ ingredient.name }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div>
+        <h4 class="text-xs font-bold text-stone-600 mb-2 flex items-center gap-1.5">
+            <i class="fas fa-kitchen-set text-orange-400"></i> 步骤
+        </h4>
+        <ol class="space-y-2">
+            {% for step in recipe.steps %}
+            <li class="text-xs text-stone-600 leading-relaxed flex gap-2">
+                <span class="font-bold text-orange-500 shrink-0 w-4">{{ loop.index }}.</span>
+                <span>{{ step }}</span>
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+
+    {% if recipe.tips %}
+    <div class="bg-orange-50 border border-orange-100 rounded-xl p-3">
+        <h4 class="text-xs font-bold text-orange-600 mb-2 flex items-center gap-1.5">
+            <i class="fas fa-lightbulb"></i> 小贴士
+        </h4>
+        <div class="space-y-1.5">
+            {% if recipe.tips is string %}
+            <div class="flex gap-2.5">
+                <span class="w-1 h-1 rounded-full bg-orange-300 mt-1.5 shrink-0"></span>
+                <p class="text-xs text-stone-600 leading-relaxed">{{ recipe.tips }}</p>
+            </div>
+            {% else %}
+            {% for tip in recipe.tips %}
+            <div class="flex gap-2.5">
+                <span class="w-1 h-1 rounded-full bg-orange-300 mt-1.5 shrink-0"></span>
+                <p class="text-xs text-stone-600 leading-relaxed">{{ tip }}</p>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="flex gap-2 pt-1">
+        <button
+            hx-post="/generate-recipe/{{ dish_id }}"
+            hx-target="#recipe-{{ dish_id }}"
+            hx-swap="innerHTML"
+            hx-request='{"timeout": 120000}'
+            class="btn btn-ghost text-xs !min-h-[2rem] !px-3"
+        >
+            <i class="fas fa-rotate"></i> 重新生成
+        </button>
+    </div>
+</div>
+{% endif %}

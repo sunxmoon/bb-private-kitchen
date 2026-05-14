@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-black text-stone-800">管理中心</h2>
+    <div class="flex p-1 bg-stone-100 rounded-xl">
+        <button onclick="switchAdminTab('users-list')" id="tab-users-list" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-stone-800 shadow-sm">成员</button>
+        <button onclick="switchAdminTab('order-history')" id="tab-order-history" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-stone-400">记录</button>
+        <button onclick="switchAdminTab('audit-logs')" id="tab-audit-logs" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-stone-400">日志</button>
+    </div>
+</div>
+
+<!-- Users List Tab -->
+<div id="content-users-list" class="space-y-3">
+    <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-stone-600">家庭成员</h3>
+        <button onclick="openModal('add-user-modal')" class="btn btn-primary !min-h-[2rem] !px-3 text-xs">
+            <i class="fas fa-plus text-xs"></i> 添加
+        </button>
+    </div>
+    <div class="grid grid-cols-1 gap-3">
+        {% for user in users %}
+        <div class="card p-4 flex items-center justify-between slide-in" style="animation-delay:{{ loop.index0 * 40 }}ms">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm" style="background: linear-gradient(135deg, {{ user.theme_color or '#f97316' }}, {{ user.theme_color or '#f97316' }}dd);">
+                    {{ user.name[0] if user.name else '?' }}
+                </div>
+                <div>
+                    <h4 class="font-bold text-stone-800 text-sm">{{ user.name }}</h4>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <p class="text-[10px] text-stone-400 font-medium">加入于 {{ user.created_at.strftime('%m-%d') }}</p>
+                        <span class="w-3 h-3 rounded-full border-2 border-white shadow-sm" style="background: {{ user.theme_color or '#f97316' }};"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="openEditModal(this.dataset.userId, this.dataset.userName, this.dataset.userColor, this.dataset.userRole)"
+                        data-user-id="{{ user.id }}"
+                        data-user-name="{{ user.name }}"
+                        data-user-color="{{ user.theme_color or '#f97316' }}"
+                        data-user-role="{{ user.role or 'user' }}"
+                        class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0" aria-label="编辑">
+                    <i class="fas fa-pen text-[10px]"></i>
+                </button>
+                <form action="/delete-user/{{ user.id }}" method="POST" onsubmit="return confirm('确定要删除用户 ' + {{ user.name | tojson }} + ' 吗？')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-red-400" aria-label="删除">
+                        <i class="fas fa-trash-alt text-[10px]"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Order History Tab -->
+<div id="content-order-history" class="hidden space-y-4">
+    <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-stone-600">全站点单记录</h3>
+    </div>
+    {% if not orders %}
+    <div class="card p-12 text-center">
+        <p class="text-sm text-stone-400">暂无记录</p>
+    </div>
+    {% else %}
+    <div class="card p-4 space-y-0">
+        {% for order in orders %}
+        <div class="relative pl-6 {% if not loop.first %}pt-3 mt-3 border-t border-stone-50{% endif %}">
+            <div class="absolute left-0 top-3.5 w-3 h-3 rounded-full border-2 bg-white z-10" style="border-color:var(--brand)"></div>
+            {% if not loop.last %}<div class="absolute left-[5px] top-6 bottom-0 w-0.5 bg-stone-200"></div>{% endif %}
+            <p class="text-[10px] font-bold text-stone-400 mb-2">{{ order.created_at.strftime('%m/%d %H:%M') }}</p>
+            <div class="space-y-2">
+                {% for item in order.items %}
+                <div class="flex items-start justify-between gap-3 {% if not loop.last %}pb-2 border-b border-stone-100{% endif %}">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-bold text-stone-700 text-xs truncate">{{ item.dish.name }}</h4>
+                            <span class="text-[8px] font-bold bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded-full">{{ item.user.name }}</span>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        {% if item.status == 'completed' %}
+                        <span class="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">完成</span>
+                        {% elif item.status == 'delayed' %}
+                        <span class="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">延期</span>
+                        {% else %}
+                        <span class="text-[9px] font-bold text-stone-300 bg-stone-50 px-2 py-0.5 rounded-full">待定</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if total_pages > 1 %}
+    <div class="flex items-center justify-center gap-3 pt-4">
+        {% if page > 1 %}
+        <a href="/admin?page={{ page - 1 }}&tab=order-history" class="btn btn-ghost !min-h-[2rem] !px-3 text-[10px]">
+            <i class="fas fa-chevron-left mr-1"></i>
+        </a>
+        {% endif %}
+        <span class="text-[10px] font-bold text-stone-400">{{ page }}/{{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="/admin?page={{ page + 1 }}&tab=order-history" class="btn btn-ghost !min-h-[2rem] !px-3 text-[10px]">
+            <i class="fas fa-chevron-right ml-1"></i>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Audit Logs Tab -->
+<div id="content-audit-logs" class="hidden space-y-3">
+    <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-stone-600">系统操作日志</h3>
+    </div>
+    <div class="card p-4 space-y-0">
+        {% for log in logs %}
+        <div class="flex items-start gap-3 {% if not loop.first %}pt-3 mt-3 border-t border-stone-50{% endif %}">
+        <div class="w-8 h-8 rounded-lg bg-stone-50 flex items-center justify-center text-stone-400 shrink-0">
+            {% if '创建' in log.action or '创造' in log.action %}
+            <i class="fas fa-magic text-[10px]" style="color:var(--brand)"></i>
+            {% elif '修改' in log.action or '更新' in log.action %}
+            <i class="fas fa-sync text-blue-400 text-[10px]"></i>
+            {% elif '删除' in log.action or '取消' in log.action or '下架' in log.action %}
+            <i class="fas fa-trash-alt text-red-400 text-[10px]"></i>
+            {% else %}
+            <i class="fas fa-bolt text-stone-400 text-[10px]"></i>
+            {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-start">
+                <p class="text-[11px] font-bold text-stone-700">
+                    <span style="color:var(--brand)">{{ log.user.name }}</span> {{ log.action }}
+                </p>
+                <span class="text-[9px] text-stone-300 font-medium shrink-0 ml-2">{{ log.timestamp.strftime('%m/%d %H:%M') }}</span>
+            </div>
+            {% if log.new_values %}
+            <div class="mt-1.5 bg-stone-50 rounded-lg p-2 space-y-0.5">
+                {% for k, v in log.new_values.items() %}
+                {% if k not in ['id', 'created_at', 'updated_at', 'password', 'user_id', 'dish_id', 'order_id'] and v %}
+                <p class="text-[9px] text-stone-400 flex justify-between">
+                    <span class="font-bold uppercase opacity-50">{{ k }}:</span>
+                    <span class="text-stone-600 font-bold truncate ml-2">{{ v }}</span>
+                </p>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+</div>
+
+<!-- Modals from users.html -->
+<div id="add-user-modal" class="hidden modal-overlay fixed inset-0 z-[70] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" onclick="if(event.target===this)closeModal('add-user-modal')">
+    <div class="card-elevated modal-content w-full max-w-sm p-6">
+        <h3 class="text-lg font-black text-stone-800 mb-6">添加新成员</h3>
+        <form action="/create-user" method="POST" class="space-y-5">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div>
+                <label class="input-label">成员称呼</label>
+                <input type="text" name="name" required class="input" placeholder="怎么称谓这位吃货？">
+            </div>
+            <div>
+                <label class="input-label">初始密码</label>
+                <input type="password" name="password" value="666" class="input">
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeModal('add-user-modal')" class="btn btn-ghost flex-1">取消</button>
+                <button type="submit" class="btn btn-primary flex-[2]">立即加入</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="edit-user-modal" class="hidden modal-overlay fixed inset-0 z-[70] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" onclick="if(event.target===this)closeModal('edit-user-modal')">
+    <div class="card-elevated modal-content w-full max-w-sm p-6">
+        <h3 class="text-lg font-black text-stone-800 mb-6">编辑成员信息</h3>
+        <form id="edit-user-form" action="" method="POST" class="space-y-5">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" id="edit-theme-color" name="theme_color" value="#f97316">
+            <div>
+                <label class="input-label">成员称呼</label>
+                <input type="text" id="edit-name" name="name" required class="input">
+            </div>
+            <div>
+                <label class="input-label">重置密码</label>
+                <input type="password" name="password" class="input" placeholder="留空则不修改">
+            </div>
+            <div>
+                <label class="input-label">主题色</label>
+                <div class="flex items-center gap-2 flex-wrap" id="color-picker">
+                    {% for color in ['#f97316', '#ef4444', '#f43f5e', '#ec4899', '#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#14b8a6', '#22c55e', '#84cc16', '#eab308'] %}
+                    <button type="button" onclick="pickColor('{{ color }}')" class="color-dot w-9 h-9 rounded-xl border-2 border-transparent transition-all hover:scale-110" style="background:{{ color }};" data-color="{{ color }}"></button>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
+                <label class="input-label">角色权限</label>
+                <select id="edit-role-select" name="role" class="input">
+                    <option value="user">普通用户</option>
+                    <option value="admin">管理员</option>
+                </select>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeModal('edit-user-modal')" class="btn btn-ghost flex-1">取消</button>
+                <button type="submit" class="btn btn-primary flex-[2]">保存修改</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function switchAdminTab(tabId) {
+    var tabs = ['users-list', 'order-history', 'audit-logs'];
+    tabs.forEach(function(id) {
+        var content = document.getElementById('content-' + id);
+        var btn = document.getElementById('tab-' + id);
+        if (id === tabId) {
+            content.classList.remove('hidden');
+            btn.className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-stone-800 shadow-sm";
+        } else {
+            content.classList.add('hidden');
+            btn.className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-stone-400";
+        }
+    });
+    // Store tab in URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tabId);
+    window.history.replaceState({}, '', url);
+}
+
+function pickColor(color) {
+    document.getElementById('edit-theme-color').value = color;
+    document.querySelectorAll('.color-dot').forEach(function(dot) {
+        if (dot.dataset.color === color) {
+            dot.style.borderColor = '#1c1917';
+            dot.style.transform = 'scale(1.15)';
+        } else {
+            dot.style.borderColor = 'transparent';
+            dot.style.transform = 'scale(1)';
+        }
+    });
+}
+
+function openEditModal(id, name, themeColor, role) {
+    document.getElementById('edit-user-form').action = '/update-user/' + id;
+    document.getElementById('edit-name').value = name;
+    document.getElementById('edit-role-select').value = role || 'user';
+    pickColor(themeColor || '#f97316');
+    openModal('edit-user-modal');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const activeTab = params.get('tab');
+    if (activeTab) {
+        switchAdminTab(activeTab);
+    }
+});
+</script>
+{% endblock %}

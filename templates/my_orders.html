@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-between">
+    <h2 class="text-xl font-black text-stone-800">当前订单</h2>
+    {% if current_order %}
+    <div class="flex items-center gap-2">
+        <span class="text-[10px] font-bold px-2 py-1 rounded-full" style="color:var(--brand);background:var(--brand-bg)">#{{ current_order.id }}</span>
+        <button onclick="if(confirm('确定清空当前订单？')) document.getElementById('delete-order-form').submit()" class="btn btn-ghost btn-icon !min-h-[2rem] text-red-400" aria-label="清空订单">
+            <i class="fas fa-trash-alt text-xs"></i>
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+{% if current_order and current_order.items %}
+<div class="space-y-3">
+    {% for item in current_order.items %}
+    <div class="card overflow-hidden slide-in" style="animation-delay:{{ loop.index0 * 60 }}ms">
+        <div class="p-5">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center flex-wrap gap-1.5">
+                        <h3 class="font-bold text-stone-800 {% if item.status == 'completed' %}line-through opacity-50{% endif %}">
+                            {{ item.dish.name if item.dish else '已删除的菜品' }}
+                        </h3>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap" style="color:var(--brand);background:var(--brand-bg)">{{ item.user.name if item.user else '?' }}</span>
+                        {% if item.status == 'completed' %}
+                        <span class="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">已完成</span>
+                        {% elif item.status == 'delayed' %}
+                        <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">已延期</span>
+                        {% endif %}
+                    </div>
+                    {% if item.taste or item.preferred_time or item.location or item.ingredients or item.remarks %}
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1.5">
+                        {% if item.taste %}<p class="text-xs text-stone-400 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.taste }}</p>{% endif %}
+                        {% if item.preferred_time %}<p class="text-xs text-stone-400 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.preferred_time }}</p>{% endif %}
+                        {% if item.location %}<p class="text-xs text-stone-400 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.location }}</p>{% endif %}
+                        {% if item.ingredients %}<p class="text-xs text-stone-400 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.ingredients }}</p>{% endif %}
+                        {% if item.remarks %}<p class="text-xs text-stone-400 col-span-2 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.remarks }}</p>{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mt-3 pt-3 border-t border-stone-100">
+                {% if item.status != 'completed' %}
+                <form action="/complete-item/{{ item.id }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-colors">
+                        <i class="fas fa-check mr-1"></i>完成
+                    </button>
+                </form>
+                {% else %}
+                <form action="/update-item/{{ item.id }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="status" value="pending">
+                    <button type="submit" class="btn !min-h-[2rem] !px-3 text-xs font-bold rounded-xl transition-colors" style="color:var(--brand);background:var(--brand-bg)">
+                        <i class="fas fa-undo mr-1"></i>撤回
+                    </button>
+                </form>
+                {% endif %}
+                {% if item.status != 'delayed' %}
+                <form action="/delay-item/{{ item.id }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors">
+                        <i class="fas fa-clock mr-1"></i>延期
+                    </button>
+                </form>
+                {% endif %}
+                <form action="/delete-item/{{ item.id }}" method="POST" onsubmit="return confirm('确定取消？')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-colors">
+                        <i class="fas fa-times mr-1"></i>取消
+                    </button>
+                </form>
+                <button onclick="toggleDetails('details-{{ item.id }}')" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200 rounded-xl ml-auto transition-colors">
+                    <i class="fas fa-pen mr-1"></i>编辑
+                </button>
+            </div>
+            <div id="details-{{ item.id }}" class="hidden mt-3 slide-in">
+                <form action="/update-item/{{ item.id }}" method="POST" class="space-y-4 pt-3 border-t border-stone-100">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="input-label">口味</label><input type="text" name="taste" value="{{ item.taste or '' }}" class="input"></div>
+                        <div><label class="input-label">时间</label><input type="text" name="preferred_time" value="{{ item.preferred_time or '' }}" class="input"></div>
+                        <div><label class="input-label">地点</label><input type="text" name="location" value="{{ item.location or '' }}" class="input"></div>
+                        <div><label class="input-label">食材</label><input type="text" name="ingredients" value="{{ item.ingredients or '' }}" class="input"></div>
+                    </div>
+                    <div>
+                        <label class="input-label">备注</label>
+                        <textarea name="remarks" class="input h-16 resize-none">{{ item.remarks or '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="input-label">状态</label>
+                        <select name="status" class="input">
+                            <option value="pending" {% if item.status == 'pending' %}selected{% endif %}>待处理</option>
+                            <option value="completed" {% if item.status == 'completed' %}selected{% endif %}>已完成</option>
+                            <option value="delayed" {% if item.status == 'delayed' %}selected{% endif %}>已延期</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-full">保存修改</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if current_order and current_order.items %}
+<div class="flex gap-3 pt-2">
+    <form action="/complete-order" method="POST" class="flex-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn w-full py-3 text-base font-black"
+                style="background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border-radius: var(--radius-xl);">
+            <i class="fas fa-check-circle mr-2"></i>下单完成
+        </button>
+    </form>
+</div>
+{% endif %}
+{% else %}
+<div class="card p-16 flex flex-col items-center justify-center text-center">
+    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-bg);color:var(--brand)">
+        <i class="fas fa-utensils text-2xl"></i>
+    </div>
+    <p class="font-bold text-stone-600 text-lg mb-6">还没有人点菜</p>
+    <a href="/order" class="btn btn-primary">
+        <i class="fas fa-plus"></i> 去点餐
+    </a>
+</div>
+{% endif %}
+
+<form id="delete-order-form" action="/delete-order/{{ current_order.id if current_order else 0 }}" method="POST" class="hidden">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+</form>
+
+<script>
+function toggleDetails(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,11 @@
+[project]
+name = "gemini-proxy"
+version = "0.2.0"
+description = "Asynchronous proxy for Gemini CLI"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+]
+
+[tool.uv]
+managed = true

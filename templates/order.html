@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center mb-6">
+    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm" style="background:var(--brand-bg);color:var(--brand)">
+        <i class="fas fa-utensils text-2xl"></i>
+    </div>
+    <h2 class="text-2xl font-black text-stone-800">我想吃...</h2>
+    <p class="text-xs text-stone-400 mt-1">选一道菜，告诉家人你的口味偏好</p>
+</div>
+
+<form action="/add-item" method="POST" id="order-form" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <!-- Dish Selection Group -->
+    <div class="card p-5 space-y-4">
+        <div class="flex items-center gap-2 mb-1">
+            <i class="fas fa-utensils text-stone-400 text-xs"></i>
+            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">选择菜品</span>
+        </div>
+        
+        <div class="space-y-3">
+            <div class="relative">
+                <select id="dish_id" name="dish_id" required class="input">
+                    <option value="">— 选一道菜 —</option>
+                    {% for dish in dishes %}
+                    <option value="{{ dish.id }}">{{ dish.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="button" id="fill-btn" onclick="fillPreference()" class="hidden btn text-xs font-bold w-full transition-all border border-orange-100 hover:bg-orange-50" style="color:var(--brand);background:var(--brand-bg)">
+                <i class="fas fa-history text-[10px]"></i> 同上次一样
+            </button>
+        </div>
+    </div>
+
+    <!-- Preferences Group -->
+    <div class="card p-5 space-y-4">
+        <div class="flex items-center gap-2 mb-1">
+            <i class="fas fa-sliders-h text-stone-400 text-xs"></i>
+            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">口味与偏好</span>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2 sm:col-span-1 space-y-1.5">
+                <label class="input-label flex items-center gap-1.5">
+                    <i class="fas fa-pepper-hot text-[10px]"></i> 口味偏好
+                </label>
+                <input type="text" name="taste" id="taste" class="input" placeholder="微辣/少油/清淡">
+            </div>
+            <div class="col-span-2 sm:col-span-1 space-y-1.5">
+                <label class="input-label flex items-center gap-1.5">
+                    <i class="fas fa-clock text-[10px]"></i> 期望时间
+                </label>
+                <input type="text" name="preferred_time" id="preferred_time" class="input" placeholder="比如：12:00">
+            </div>
+            <div class="col-span-2 sm:col-span-1 space-y-1.5">
+                <label class="input-label flex items-center gap-1.5">
+                    <i class="fas fa-map-marker-alt text-[10px]"></i> 用餐地点
+                </label>
+                <input type="text" name="location" id="location" class="input" placeholder="比如：客厅">
+            </div>
+            <div class="col-span-2 sm:col-span-1 space-y-1.5">
+                <label class="input-label flex items-center gap-1.5">
+                    <i class="fas fa-seedling text-[10px]"></i> 特殊食材
+                </label>
+                <input type="text" name="ingredients" id="ingredients" class="input" placeholder="比如：加鸡蛋">
+            </div>
+            <div class="col-span-2 space-y-1.5">
+                <label class="input-label flex items-center gap-1.5">
+                    <i class="fas fa-comment-alt text-[10px]"></i> 备注
+                </label>
+                <textarea name="remarks" id="remarks" class="input h-20 resize-none" placeholder="还有什么想告诉大厨的？"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn w-full py-4 text-base font-black tracking-widest shadow-lg active:shadow-sm transition-all"
+            style="background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;border-radius:var(--radius-xl);">
+        <i class="fas fa-paper-plane mr-2"></i> 立即点餐
+    </button>
+</form>
+
+<!-- Random Picker Button (Fixed) -->
+<div class="fixed z-40" style="bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); right: 1.5rem;">
+    <button onclick="openRandomPicker()" class="w-14 h-14 rounded-2xl text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl" style="background: linear-gradient(135deg, #6366f1, #4f46e5);" aria-label="随机选菜">
+        <i class="fas fa-dice text-xl"></i>
+    </button>
+</div>
+
+<!-- Random Picker Modal -->
+<div id="random-picker" class="hidden modal-overlay fixed inset-0 z-[70] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" onclick="if(event.target===this)closeModal('random-picker')">
+    <div class="card-elevated modal-content w-full max-w-sm p-8 text-center">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-dice text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-black text-stone-800 mb-1">纠结星人救星</h3>
+        <p class="text-xs text-stone-400 mb-8">摇一摇，看看今天吃哪个</p>
+        
+        <div id="picker-result" class="h-24 flex items-center justify-center bg-stone-50 rounded-2xl mb-8 border border-dashed border-stone-200">
+            <span id="picker-text" class="text-2xl font-black text-stone-800">🎲</span>
+        </div>
+        
+        <div class="flex gap-3">
+            <button id="spin-btn" onclick="startSpin()" class="btn flex-1 bg-indigo-500 text-white hover:bg-indigo-600">
+                <i class="fas fa-sync-alt mr-1 text-xs"></i> 摇一摇
+            </button>
+            <button id="pick-confirm-btn" class="btn btn-primary flex-1 hidden" onclick="confirmPick()">
+                就吃这个！
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+var dishNames = {{ dishes | map(attribute='name') | list | tojson }};
+var dishIds = {{ dishes | map(attribute='id') | list | tojson }};
+var pickedDishId = null;
+
+var currentSelection = '';
+
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var dishId = params.get('dish_id');
+    if (dishId) {
+        var sel = document.getElementById('dish_id');
+        sel.value = dishId;
+        currentSelection = dishId;
+        document.getElementById('taste').value = params.get('taste') || '';
+        document.getElementById('preferred_time').value = params.get('preferred_time') || '';
+        document.getElementById('location').value = params.get('location') || '';
+        document.getElementById('ingredients').value = params.get('ingredients') || '';
+        document.getElementById('remarks').value = params.get('remarks') || '';
+        checkPreference(dishId);
+    }
+})();
+
+document.getElementById('dish_id').addEventListener('change', function() {
+    if (this.value && this.value !== currentSelection) {
+        currentSelection = this.value;
+        checkPreference(this.value);
+    } else if (!this.value) {
+        document.getElementById('fill-btn').classList.add('hidden');
+    }
+});
+
+function checkPreference(dishId) {
+    fetch('/get-preference/' + dishId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var hasData = data.taste || data.preferred_time || data.location || data.ingredients || data.remarks;
+            document.getElementById('fill-btn').classList.toggle('hidden', !hasData);
+            if (hasData) {
+                window._pref = data;
+            }
+        });
+}
+
+function fillPreference() {
+    var p = window._pref || {};
+    document.getElementById('taste').value = p.taste || '';
+    document.getElementById('preferred_time').value = p.preferred_time || '';
+    document.getElementById('location').value = p.location || '';
+    document.getElementById('ingredients').value = p.ingredients || '';
+    document.getElementById('remarks').value = p.remarks || '';
+}
+
+function openRandomPicker() {
+    openModal('random-picker');
+    document.getElementById('pick-confirm-btn').classList.add('hidden');
+    document.getElementById('spin-btn').classList.remove('hidden');
+    document.getElementById('picker-text').textContent = '🎲';
+    document.getElementById('picker-text').className = "text-2xl font-black text-stone-800";
+}
+
+function startSpin() {
+    var btn = document.getElementById('spin-btn');
+    var text = document.getElementById('picker-text');
+    var confirmBtn = document.getElementById('pick-confirm-btn');
+    btn.disabled = true;
+    btn.classList.add('btn-loading');
+
+    var count = 0, max = 20;
+    var interval = setInterval(function() {
+        var idx = Math.floor(Math.random() * dishNames.length);
+        text.textContent = dishNames[idx];
+        pickedDishId = dishIds[idx];
+        count++;
+        if (count >= max) {
+            clearInterval(interval);
+            btn.disabled = false;
+            btn.classList.remove('btn-loading');
+            btn.classList.add('hidden');
+            confirmBtn.classList.remove('hidden');
+            text.className = "text-2xl font-black text-indigo-600 scale-in";
+        }
+    }, 80);
+}
+
+function confirmPick() {
+    if (pickedDishId) {
+        document.getElementById('dish_id').value = pickedDishId;
+        currentSelection = pickedDishId;
+        checkPreference(pickedDishId);
+        closeModal('random-picker');
+        // Scroll to the select input smoothly
+        document.getElementById('dish_id').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+</script>
+{% endblock %}

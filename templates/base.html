@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>宝宝的私房菜馆</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/tailwind.min.css">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
+    {% if csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {% endif %}
+        <style>
+            :root {
+            --brand: #f97316;
+            --brand-dark: #ea580c;
+            --brand-light: #fb923c;
+            --brand-bg: #fff7ed;
+            --surface: #ffffff;
+            --bg: #f5f5f4;
+            --bg-subtle: #fafaf9;
+            --text: #1c1917;
+            --text-secondary: #78716c;
+            --text-muted: #a8a29e;
+            --border: #e7e5e4;
+            --border-light: #f5f5f4;
+            --radius-sm: 0.75rem;
+            --radius-md: 1rem;
+            --radius-lg: 1.25rem;
+            --radius-xl: 1.5rem;
+            --shadow-card: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.02);
+            --shadow-elevated: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+            --shadow-modal: 0 20px 60px rgba(0,0,0,.15), 0 8px 20px rgba(0,0,0,.08);
+            }
+            html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+            body {
+                font-family: 'Noto Sans SC', 'Karla', -apple-system, BlinkMacSystemFont, sans-serif;
+                background-color: var(--bg);
+                color: var(--text);
+                -webkit-font-smoothing: antialiased;
+                padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+            }
+            .font-brand { font-family: 'Karla', 'Noto Sans SC', sans-serif; }
+            .card { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); border: 1px solid var(--border-light); }
+            .card-elevated { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-elevated); }
+            .btn {
+                display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
+                font-weight: 700; font-size: 0.875rem; border-radius: var(--radius-md);
+                transition: all .2s cubic-bezier(.4,0,.2,1); cursor: pointer; user-select: none;
+                min-height: 2.75rem; padding: 0 1.25rem; border: none; outline: none;
+            }
+            .btn:active { transform: scale(.97); }
+            .btn-primary { background: var(--brand); color: #fff; }
+            .btn-primary:hover { background: var(--brand-dark); box-shadow: 0 4px 12px rgba(249,115,22,.3); }
+            .btn-ghost { background: transparent; color: var(--text-secondary); }
+            .btn-ghost:hover { background: rgba(0,0,0,.05); }
+            .btn-danger { background: #fef2f2; color: #dc2626; }
+            .btn-danger:hover { background: #fee2e2; }
+            .btn-icon { width: 2.75rem; padding: 0; border-radius: var(--radius-md); }
+            .btn-loading { pointer-events: none; opacity: .7; color: transparent !important; position: relative; }
+            .btn-loading::after {
+                content: ""; position: absolute; width: 1.25rem; height: 1.25rem;
+                top: 50%; left: 50%; margin: -.625rem; border-radius: 50%;
+                border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+                animation: spin .6s linear infinite;
+            }
+            @keyframes spin { to { transform: rotate(360deg); } }
+            .input {
+                width: 100%; padding: .75rem 1rem; font-size: .875rem; min-height: 48px;
+                background: var(--bg-subtle); border: 1.5px solid var(--border); border-radius: var(--radius-md);
+                outline: none; transition: all .2s cubic-bezier(.4,0,.2,1);
+            }
+            select.input {
+                padding-right: 2.5rem;
+                appearance: none;
+                -webkit-appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 1rem center;
+                background-size: 16px;
+            }
+            .input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(249,115,22,.12); background: #fff; }
+            .input-label { display: block; font-size: .75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: .375rem; letter-spacing: .02em; }
+            .nav-item { position: relative; }
+            .nav-item.nav-active::before {
+                content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+                width: 20px; height: 3px; border-radius: 2px; background: var(--brand);
+            }
+            .nav-active { color: var(--brand) !important; }
+            .nav-active i { color: var(--brand) !important; }
+            .slide-in { animation: slideIn .35s cubic-bezier(.4,0,.2,1); }
+            @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+            .fade-in { animation: fadeIn .25s ease-out; }
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            .scale-in { animation: scaleIn .3s cubic-bezier(.4,0,.2,1); }
+            @keyframes scaleIn { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+            .slide-up { animation: slideUp .35s cubic-bezier(.4,0,.2,1); }
+            @keyframes slideUp { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+            .toast {
+                padding: .75rem 1rem; border-radius: var(--radius-md); font-size: .8125rem; font-weight: 600;
+                box-shadow: var(--shadow-elevated); display: flex; align-items: center; gap: .5rem;
+                animation: slideIn .25s cubic-bezier(.4,0,.2,1);
+            }
+            .gpu { will-change: transform; transform: translateZ(0); }
+
+            details summary::-webkit-details-marker { display: none; }
+            details summary { list-style: none; }
+            details[open] summary .chevron-icon { transform: rotate(180deg); }
+            details[open] .details-content { animation: slideIn .25s cubic-bezier(.4,0,.2,1); }
+
+            .modal-overlay {
+                opacity: 0; visibility: hidden; transition: all .25s cubic-bezier(.4,0,.2,1);
+                z-index: 80;
+            }
+            .modal-overlay.active { opacity: 1; visibility: visible; }
+            .modal-content {
+                transform: scale(.95) translateY(10px); opacity: 0;
+                transition: all .25s cubic-bezier(.4,0,.2,1);
+                pointer-events: auto;
+            }
+            .modal-overlay.active .modal-content {
+                transform: scale(1) translateY(0); opacity: 1;
+            }
+            .modal-overlay { pointer-events: none; }
+            .modal-overlay.active { pointer-events: auto; }
+
+            .ai-gen-btn.htmx-request .ai-label { display: none; }
+            .ai-gen-btn.htmx-request .ai-spinner { display: inline !important; }
+            .ai-gen-btn.htmx-request { pointer-events: none; opacity: .7; }
+
+            .htmx-indicator {
+                opacity: 0;
+                transition: opacity 200ms ease-in;
+                pointer-events: none;
+            }
+            .htmx-request .htmx-indicator, .htmx-request.htmx-indicator {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+            }
+        </style>
+        {% if current_user and current_user.theme_color %}
+        <style>
+            :root { --brand: {{ current_user.theme_color }}; --brand-dark: {{ current_user.theme_color }}cc; --brand-light: {{ current_user.theme_color }}99; --brand-bg: {{ current_user.theme_color }}1a; }
+            .btn-primary:hover { box-shadow: 0 4px 12px color-mix(in srgb, var(--brand) 30%, transparent); }
+            .input:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent); }
+        </style>
+        {% endif %}
+</head>
+<body>
+    {% if current_user %}
+    <header class="sticky top-0 z-50 bg-white/85 backdrop-blur-2xl border-b" style="border-color: var(--border-light);">
+        <div class="flex items-center justify-between px-4 h-14 max-w-2xl mx-auto">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-sm" style="background: linear-gradient(135deg, var(--brand), var(--brand-dark));">
+                    <i class="fas fa-utensils text-xs"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-stone-800 text-sm leading-tight tracking-tight">宝宝的私房菜馆</h1>
+                    <p class="text-[10px] text-stone-400 font-medium">{{ current_user.name }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <a href="/admin" class="btn btn-ghost btn-icon" aria-label="管理">
+                    <i class="fas fa-users-cog text-stone-500"></i>
+                </a>
+                <a href="/logout" class="btn btn-ghost btn-icon" aria-label="切换">
+                    <i class="fas fa-sign-out-alt text-stone-500"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="max-w-2xl mx-auto px-4 pt-5 pb-6 space-y-5">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if current_user %}
+    <nav aria-label="主导航" class="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-2xl border-t border-stone-100" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+        <div class="max-w-2xl mx-auto flex justify-around items-center h-16 px-2">
+            <a href="/" aria-current="{% if request.url.path == '/' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] rounded-xl transition-all duration-200 {% if request.url.path == '/' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="菜单">
+                <i class="fas fa-utensils text-lg"></i>
+                <span class="text-[10px] font-bold">菜单</span>
+            </a>
+            <a href="/order" aria-current="{% if request.url.path == '/order' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] rounded-xl transition-all duration-200 {% if request.url.path == '/order' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="点餐">
+                <i class="fas fa-plus-circle text-lg"></i>
+                <span class="text-[10px] font-bold">点餐</span>
+            </a>
+            <a href="/my-orders" aria-current="{% if request.url.path == '/my-orders' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] rounded-xl transition-all duration-200 {% if request.url.path == '/my-orders' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="订单">
+                <i class="fas fa-clipboard-list text-lg"></i>
+                <span class="text-[10px] font-bold">订单</span>
+            </a>
+            <a href="/history" aria-current="{% if request.url.path == '/history' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] rounded-xl transition-all duration-200 {% if request.url.path == '/history' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="记录">
+                <i class="fas fa-history text-lg"></i>
+                <span class="text-[10px] font-bold">记录</span>
+            </a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-full max-w-xs pointer-events-none" role="status" aria-live="polite"></div>
+
+    <div id="modal-container" class="hidden modal-overlay fixed inset-0 z-[60] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('modal-container')">
+        <div id="modal-body" class="modal-content w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <!-- Content loaded via HTMX -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]') ||
+                        form.querySelector('input[type="submit"]');
+            if (btn && !form.getAttribute('data-submitting')) {
+                form.setAttribute('data-submitting', 'true');
+                btn.classList.add('btn-loading');
+                btn.disabled = true;
+            }
+        });
+
+        function openModal(id) {
+            var modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            requestAnimationFrame(function() { modal.classList.add('active'); });
+        }
+
+        function closeModal(id) {
+            var modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.remove('active');
+            setTimeout(function() { 
+                modal.classList.add('hidden'); 
+                if (id === 'modal-container') {
+                    document.getElementById('modal-body').innerHTML = '';
+                }
+            }, 250);
+        }
+
+        function showToast(message, type) {
+            var c = document.getElementById('toast-container');
+            if (!c) return;
+            var t = document.createElement('div');
+            t.className = 'toast pointer-events-auto';
+            var colors = { success: 'bg-green-50 text-green-800 border border-green-200', error: 'bg-red-50 text-red-800 border border-red-200', info: 'bg-white text-stone-800 border border-stone-200' };
+            var icons = { success: 'fa-check-circle text-green-500', error: 'fa-exclamation-circle text-red-500', info: 'fa-info-circle text-orange-500' };
+            t.className += ' ' + (colors[type] || colors.info);
+            t.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i> ' + message;
+            c.appendChild(t);
+            setTimeout(function() {
+                t.style.opacity = '0';
+                t.style.transform = 'translateX(100%)';
+                t.style.transition = 'all .3s cubic-bezier(.4,0,.2,1)';
+                setTimeout(function() { t.remove(); }, 300);
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var p = new URLSearchParams(window.location.search);
+            if (p.has('msg')) { showToast(p.get('msg'), 'success'); window.history.replaceState({}, document.title, window.location.pathname); }
+        });
+
+        document.body.addEventListener('htmx:afterSwap', function(e) {
+            var trigger = e.detail.requestConfig;
+            if (trigger && trigger.path) {
+                var url = new URL(trigger.path, window.location.origin);
+                var msg = url.searchParams.get('msg');
+                if (msg) showToast(msg, 'success');
+            }
+        });
+
+        document.body.addEventListener('htmx:configRequest', function(e) {
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta) {
+                e.detail.headers['X-CSRF-Token'] = meta.getAttribute('content');
+            }
+        });
+
+        function loadDishDetail(id) {
+            var body = document.getElementById('modal-body');
+            if (!body) return;
+            body.innerHTML = '<div class="flex items-center justify-center p-12"><i class="fas fa-spinner fa-spin text-2xl text-stone-300"></i></div>';
+            if (typeof htmx !== 'undefined') {
+                htmx.ajax('GET', '/dish-detail/' + id, {target: '#modal-body'});
+                openModal('modal-container');
+            }
+        }
+
+        function loadRecipe(id) {
+            var body = document.getElementById('modal-body');
+            if (!body) return;
+            body.innerHTML = '<div class="flex items-center justify-center p-12"><i class="fas fa-spinner fa-spin text-2xl text-stone-300"></i></div>';
+            if (typeof htmx !== 'undefined') {
+                htmx.ajax('GET', '/recipe-editor/' + id, {target: '#modal-body'});
+                openModal('modal-container');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<div class="space-y-3 border-t border-stone-100 pt-4 mt-2">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <label class="input-label !mb-0">菜谱信息</label>
+            {% if msg %}
+            <span class="text-[10px] font-bold text-green-500 animate-pulse">{{ msg }}</span>
+            {% endif %}
+            {% if error %}
+            <span class="text-[10px] font-bold text-red-500">{{ error }}</span>
+            {% endif %}
+        </div>
+        {% if ai_available %}
+        <button type="button"
+            hx-post="{{ ai_generate_url }}"
+            hx-target="closest .space-y-3"
+            hx-swap="outerHTML"
+            hx-request='{"timeout": 120000}'
+            hx-trigger="click"
+            class="text-xs font-bold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 transition ai-gen-btn"
+            style="color:var(--brand);background:var(--brand-bg)"
+            title="AI生成菜谱">
+            <i class="fas fa-robot"></i>
+            <span class="ai-label">AI生成</span>
+            <i class="fas fa-spinner fa-spin ai-spinner" style="display:none"></i>
+        </button>
+        {% else %}
+        <span class="text-[10px] text-stone-300" title="AI能力暂时不可用"><i class="fas fa-robot mr-1"></i>AI不可用</span>
+        {% endif %}
+    </div>
+    <div>
+        <label class="input-label">食材（每行格式：用量 名称）</label>
+        <textarea name="recipe_ingredients" class="input h-20 resize-none font-mono text-xs" placeholder="500g 五花肉&#10;30g 冰糖">{% if recipe %}{% for i in recipe.ingredients %}{{ i.amount }} {{ i.name }}
+{% endfor %}{% endif %}</textarea>
+    </div>
+    <div>
+        <label class="input-label">步骤（每行一步）</label>
+        <textarea name="recipe_steps" class="input h-24 resize-none font-mono text-xs" placeholder="五花肉切块，冷水下锅焯水3分钟&#10;锅中放少许油，加入冰糖炒出糖色">{% if recipe %}{% for s in recipe.steps %}{{ s }}
+{% endfor %}{% endif %}</textarea>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label class="input-label">烹饪时长</label>
+            <input type="text" name="recipe_cook_time" class="input" placeholder="45分钟" value="{{ recipe.cook_time if recipe else '' }}">
+        </div>
+        <div>
+            <label class="input-label">难度</label>
+            <select name="recipe_difficulty" class="input">
+                <option value="">—</option>
+                <option value="简单" {% if recipe and recipe.difficulty == '简单' %}selected{% endif %}>简单</option>
+                <option value="中等" {% if recipe and recipe.difficulty == '中等' %}selected{% endif %}>中等</option>
+                <option value="困难" {% if recipe and recipe.difficulty == '困难' %}selected{% endif %}>困难</option>
+            </select>
+        </div>
+    </div>
+    <div>
+        <label class="input-label">小贴士</label>
+        <textarea name="recipe_tips" class="input h-16 resize-none" placeholder="焯水后用温水冲洗，肉质更嫩">{% if recipe and recipe.tips %}{% if recipe.tips is string %}{{ recipe.tips }}{% else %}{{ recipe.tips | join('\n') }}{% endif %}{% endif %}</textarea>
+    </div>
+</div>
