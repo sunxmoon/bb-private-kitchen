@@ -1,126 +1,26 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
-MANIFEST
+dist/
+build/
+.eggs/
 
-# PyInstaller
-#  Usually these files are written by a python script, before pyinstaller
-#  operates on them.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-pytestdebug.log
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-#   For a library or package, you might want to ignore these files since the Python is
-#   managed by the end user.
-# .python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or even
-#   fail all together, on other platforms.
-#Pipfile.lock
-
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-
-# PEP 582; used by e.g. github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
+# Virtual environments
 .env
 .venv
 env/
 venv/
-ENV/
-env.bak/
-venv.bak/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
 
 # IDE
 .idea/
@@ -128,53 +28,30 @@ venv.bak/
 *.swp
 *.swo
 
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# OS generated files
+# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Project-specific: User Uploads
+# Project: uploads
 static/uploads/*
 !static/uploads/.gitkeep
 
-# Project-specific: Databases
+# Project: databases
 *.db
 *.sqlite
 
-# Project-specific: AI Tools
+# Project: security
+.cookie_secret
+
+# Project: AI tools
 host/gemini-bin
 host/gemini-proxy.log
 
-# Project-specific: Security
-.cookie_secret
+# Project: Claude Code
+.claude/
 
-# Opencode
+# Project: Loki
+.loki/
+
+# Project: OpenCode
 .opencode/

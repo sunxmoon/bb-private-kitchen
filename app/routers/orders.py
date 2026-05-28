@@ -174,8 +174,5 @@ async def complete_order(
     pending = [i for i in order.items if i.status != "completed"]
     if pending:
         return RedirectResponse(url=f"/my-orders?msg=还有 {len(pending)} 道菜未完成", status_code=303)
-    order.status = "completed"
-    crud.create_audit_log(db, current_user.id, "完成了订单", "orders",
-                          order.id, {"status": "open"}, {"status": "completed"})
-    db.commit()
+    crud.complete_order(db, order.id, current_user.id)
     return RedirectResponse(url="/my-orders?msg=订单已完成！", status_code=303)

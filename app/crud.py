@@ -1,7 +1,7 @@
-import threading
 from datetime import datetime, timedelta
 from typing import Any, Dict
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from . import models, schemas, security
@@ -48,9 +48,9 @@ def get_user_by_name(db: Session, name: str):
 def authenticate_user(db: Session, name: str, password: str):
     user = get_user_by_name(db, name)
     if not user:
-        return False
+        return None
     if not security.verify_password(password, user.password):
-        return False
+        return None
     return user
 
 def get_users(db: Session):
@@ -164,8 +164,6 @@ def delete_dish(db: Session, dish_id: int, user_id: int):
     return db_dish
 
 # Order CRUD
-_order_lock = threading.Lock()
-
 def get_current_order(db: Session):
     return db.query(models.Order).options(
         selectinload(models.Order.items).selectinload(models.OrderItem.dish),
@@ -173,7 +171,6 @@ def get_current_order(db: Session):
     ).filter(models.Order.status == "open").order_by(models.Order.created_at.desc()).first()
 
 def get_or_create_current_order(db: Session, user_id: int):
-    with _order_lock:
         order = get_current_order(db)
         if not order:
             order = models.Order(status="open", created_by=user_id)
@@ -279,6 +276,17 @@ def delete_order(db: Session, order_id: int, user_id: int):
     db.commit()
     return True
 
+def complete_order(db: Session, order_id: int, user_id: int):
+    db_order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not db_order:
+        return None
+    old_values = {c.name: getattr(db_order, c.name) for c in db_order.__table__.columns}
+    db_order.status = "completed"
+    new_values = {c.name: getattr(db_order, c.name) for c in db_order.__table__.columns}
+    create_audit_log(db, user_id, "完成了订单", "orders", order_id, old_values, new_values, commit=False)
+    db.commit()
+    return db_order
+
 PAGE_SIZE = 20
 
 def get_order_history(db: Session, page: int = 1, limit: int = None):
@@ -298,8 +306,8 @@ def get_order_history(db: Session, page: int = 1, limit: int = None):
 def get_order_history_count(db: Session) -> int:
     return db.query(models.Order).count()
 
-def get_audit_logs(db: Session):
-    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).all()
+def get_audit_logs(db: Session, limit: int = 100):
+    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).limit(limit).all()
 
 def get_last_item_preference(db: Session, user_id: int, dish_id: int):
     return db.query(models.OrderItem)\
@@ -335,3 +343,34 @@ def create_or_update_recipe(db: Session, dish_id: int, content: dict, user_id: i
     db.commit()
     db.refresh(existing)
     return existing
+
+
+def get_order_stats(db: Session):
+    """Get order statistics using SQL aggregation instead of loading all records."""
+    total_orders = db.query(func.count(models.Order.id)).scalar() or 0
+    total_items = db.query(func.count(models.OrderItem.id)).scalar() or 0
+
+    top_dishes = (
+        db.query(models.Dish.name, func.count(models.OrderItem.id).label("count"))
+        .join(models.OrderItem, models.OrderItem.dish_id == models.Dish.id)
+        .group_by(models.Dish.name)
+        .order_by(func.count(models.OrderItem.id).desc())
+        .limit(5)
+        .all()
+    )
+
+    active_users = (
+        db.query(models.User.name, func.count(models.OrderItem.id).label("count"))
+        .join(models.OrderItem, models.OrderItem.user_id == models.User.id)
+        .group_by(models.User.name)
+        .order_by(func.count(models.OrderItem.id).desc())
+        .limit(5)
+        .all()
+    )
+
+    return {
+        "total_orders": total_orders,
+        "total_items": total_items,
+        "top_dishes": [(name, count) for name, count in top_dishes],
+        "active_users": [(name, count) for name, count in active_users],
+    }

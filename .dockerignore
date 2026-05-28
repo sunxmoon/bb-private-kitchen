@@ -7,6 +7,7 @@ __pycache__/
 htmlcov/
 .git/
 .gitignore
+.claude/
 .env
 .env.example
 .loki/
@@ -17,5 +18,6 @@ Dockerfile
 dev.db
 .python-version
 .venv/
+host/
 static/uploads/*
 !static/uploads/.gitkeep

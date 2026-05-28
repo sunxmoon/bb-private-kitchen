@@ -14,6 +14,10 @@ from .routers import admin, auth, dishes, history, orders, recipes
 from .security import is_production
 
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 def _migrate_background_to_theme(engine):
     from sqlalchemy import inspect, text
     insp = inspect(engine)
@@ -57,9 +61,6 @@ def _migrate_add_indexes(engine):
             with engine.begin() as conn:
                 conn.execute(text("CREATE INDEX ix_order_items_status ON order_items (status)"))
             logger.info("Migration: created index ix_order_items_status")
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager

@@ -57,8 +57,8 @@ def test_delete_nonexistent_dish(db):
 def test_create_user_and_authenticate(db):
     crud.create_user(db, schemas.UserCreate(name="authuser", password="mypass"))
     assert crud.authenticate_user(db, "authuser", "mypass") is not None
-    assert crud.authenticate_user(db, "authuser", "wrong") is False
-    assert crud.authenticate_user(db, "nonexistent", "any") is False
+    assert crud.authenticate_user(db, "authuser", "wrong") is None
+    assert crud.authenticate_user(db, "nonexistent", "any") is None
 
 
 def test_get_user_by_name(db):

@@ -1,3 +1,5 @@
+import ast
+
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -36,7 +38,6 @@ def _parse_recipe_from_form(
         # Handle case where recipe_tips might be a string representation of a list "['a', 'b']"
         val = recipe_tips.strip()
         if val.startswith("['") and val.endswith("']"):
-            import ast
             try:
                 tips = ast.literal_eval(val)
             except Exception:
@@ -189,7 +190,6 @@ async def delete_dish(
     dish = crud.get_dish(db, dish_id)
     if not dish:
         return RedirectResponse(url="/?msg=菜品不存在", status_code=404)
-    delete_old_image(dish.image_url)
     try:
         crud.delete_dish(db, dish_id, current_user.id)
     except ValueError as e:

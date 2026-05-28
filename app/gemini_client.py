@@ -9,6 +9,19 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
+def _clean_spaces(obj):
+    """Remove unnecessary spaces between CJK characters."""
+    cjk = r'[一-鿿，。！？：；（）]'
+    if isinstance(obj, str):
+        return re.sub(rf'(?<={cjk})\s+(?={cjk})', '', obj)
+    elif isinstance(obj, list):
+        return [_clean_spaces(x) for x in obj]
+    elif isinstance(obj, dict):
+        return {k: _clean_spaces(v) for k, v in obj.items()}
+    return obj
+
+
 RECIPE_PROMPT_TEMPLATE = """你是一位经验丰富的「私房菜主厨」。请为这道名为"{dish_name}"的菜品生成一份详细且专业的菜谱。
 {description_text}
 
@@ -119,42 +132,29 @@ class GeminiClient:
         try:
             data = json.loads(cleaned)
 
-            def clean_spaces(obj):
-                if isinstance(obj, str):
-                    cjk = r'[\u4e00-\u9fff，。！？：；（）]'
-                    return re.sub(
-                        rf'(?<={cjk})\s+(?={cjk})',
-                        '', obj,
-                    )
-                elif isinstance(obj, list):
-                    return [clean_spaces(x) for x in obj]
-                elif isinstance(obj, dict):
-                    return {k: clean_spaces(v) for k, v in obj.items()}
-                return obj
-
             if isinstance(data, str):
                 try:
                     data = json.loads(data)
                 except json.JSONDecodeError:
                     pass
 
-            data = clean_spaces(data)
+            data = _clean_spaces(data)
 
             if isinstance(data, dict) and "result" in data:
                 res = data["result"]
                 if isinstance(res, str):
                     try:
                         inner_data = json.loads(res)
-                        return clean_spaces(inner_data)
+                        return _clean_spaces(inner_data)
                     except json.JSONDecodeError:
-                        return clean_spaces(res)
-                return clean_spaces(res)
+                        return _clean_spaces(res)
+                return _clean_spaces(res)
 
             if isinstance(data, str):
                  if data.strip().startswith('{'):
                      try:
                          data = json.loads(data)
-                         data = clean_spaces(data)
+                         data = _clean_spaces(data)
                      except (json.JSONDecodeError, KeyError, TypeError):
                          pass
 
@@ -164,16 +164,16 @@ class GeminiClient:
             if match:
                 try:
                     data = json.loads(match.group())
-                    data = clean_spaces(data)
+                    data = _clean_spaces(data)
                     if isinstance(data, dict) and "result" in data:
                         res = data["result"]
                         if isinstance(res, str):
                             try:
                                 inner_data = json.loads(res)
-                                return clean_spaces(inner_data)
+                                return _clean_spaces(inner_data)
                             except json.JSONDecodeError:
-                                return clean_spaces(res)
-                        return clean_spaces(res)
+                                return _clean_spaces(res)
+                        return _clean_spaces(res)
                     return data
                 except Exception:
                     pass
