@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 def _run_migrations():
-    """Run Alembic migrations. Stamps existing databases on first use."""
+    """Run Alembic migrations. Handles both new and existing databases."""
     from alembic.config import Config
     from sqlalchemy import inspect
 
@@ -52,11 +52,22 @@ def _run_migrations():
     alembic_cfg = Config("alembic.ini")
     insp = inspect(engine)
 
-    # Existing database without alembic_version table — stamp as current
-    if "users" in insp.get_table_names() and "alembic_version" not in insp.get_table_names():
-        logger.info("Existing database detected, stamping current Alembic revision")
-        command.stamp(alembic_cfg, "head")
+    if "users" in insp.get_table_names():
+        if "alembic_version" not in insp.get_table_names():
+            # First time with Alembic — stamp initial, then apply pending
+            logger.info("Existing database detected, stamping initial revision and applying pending migrations")
+            command.stamp(alembic_cfg, "001")
+            command.upgrade(alembic_cfg, "head")
+        else:
+            # Alembic already initialized — check if category column exists (fix for bad stamp)
+            if "dishes" in insp.get_table_names():
+                columns = {c["name"] for c in insp.get_columns("dishes")}
+                if "category" not in columns:
+                    logger.info("Missing category column, re-stamping and upgrading")
+                    command.stamp(alembic_cfg, "001")
+            command.upgrade(alembic_cfg, "head")
     else:
+        # New database — Alembic creates everything
         command.upgrade(alembic_cfg, "head")
 
 
