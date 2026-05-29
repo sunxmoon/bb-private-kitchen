@@ -21,7 +21,7 @@ def test_history_page_with_data(client, db):
 
 
 def test_get_or_create_current_order_creates_if_missing(db):
-    user = crud.create_user(db, schemas.UserCreate(name="noorder", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="noorder", password="testpass666"))
     order = crud.get_or_create_current_order(db, user.id)
     assert order is not None
     assert order.status == "open"
@@ -29,21 +29,21 @@ def test_get_or_create_current_order_creates_if_missing(db):
 
 
 def test_get_or_create_current_order_returns_existing(db):
-    user = crud.create_user(db, schemas.UserCreate(name="hasorder", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="hasorder", password="testpass666"))
     order1 = crud.get_or_create_current_order(db, user.id)
     order2 = crud.get_or_create_current_order(db, user.id)
     assert order1.id == order2.id
 
 
 def test_get_order_history_count(db):
-    user = crud.create_user(db, schemas.UserCreate(name="counter", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="counter", password="testpass666"))
     assert crud.get_order_history_count(db) == 0
     crud.create_order(db, schemas.OrderCreate(created_by=user.id))
     assert crud.get_order_history_count(db) == 1
 
 
 def test_get_audit_logs(db):
-    user = crud.create_user(db, schemas.UserCreate(name="logger", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="logger", password="testpass666"))
     crud.create_dish(db, schemas.DishCreate(name="Log Dish", created_by=user.id))
     logs = crud.get_audit_logs(db)
     assert len(logs) > 0

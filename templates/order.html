@@ -9,6 +9,42 @@
     <p class="text-xs text-stone-400 mt-1">选一道菜，告诉家人你的口味偏好</p>
 </div>
 
+{% if current_order and current_order.items %}
+<div id="order-summary" class="card p-4 mb-4" hx-get="/order" hx-trigger="every 30s" hx-select="#order-summary" hx-swap="outerHTML">
+    <div class="flex items-center gap-2 mb-2">
+        <i class="fas fa-receipt text-xs" style="color:var(--brand)"></i>
+        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">已点菜品</span>
+        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="color:var(--brand);background:var(--brand-bg)">{{ current_order.items|length }} 道</span>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        {% for item in current_order.items %}
+        {% if item.status != 'completed' %}
+        <span class="text-xs font-bold px-2.5 py-1 rounded-lg border border-stone-100 bg-stone-50 text-stone-600">
+            {{ item.user.name if item.user else '?' }} · {{ item.dish.name if item.dish else '已删除' }}
+        </span>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if top_dishes %}
+<div class="mb-4">
+    <div class="flex items-center gap-2 mb-2">
+        <i class="fas fa-fire text-xs" style="color:var(--brand)"></i>
+        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">你常点的</span>
+    </div>
+    <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {% for dish, count in top_dishes %}
+        <a href="/order?dish_id={{ dish.id }}" class="card px-3 py-2 flex items-center gap-2 shrink-0 hover:bg-stone-50 transition-colors">
+            <span class="text-xs font-bold text-stone-700">{{ dish.name }}</span>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style="color:var(--brand);background:var(--brand-bg)">{{ count }}次</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <form action="/add-item" method="POST" id="order-form" class="space-y-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
@@ -76,11 +112,18 @@
         </div>
     </div>
 
-    <button type="submit" class="btn w-full py-4 text-base font-black tracking-widest shadow-lg active:shadow-sm transition-all"
+    <button type="submit" id="submit-btn" class="btn w-full py-4 text-base font-black tracking-widest shadow-lg active:shadow-sm transition-all"
             style="background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;border-radius:var(--radius-xl);">
         <i class="fas fa-paper-plane mr-2"></i> 立即点餐
     </button>
 </form>
+
+<!-- Success Overlay -->
+<div id="success-overlay" class="hidden fixed inset-0 z-[80] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center">
+    <div class="success-icon text-6xl mb-4 scale-in">&#127860;</div>
+    <p class="text-2xl font-black text-stone-800 mb-2 success-text">点餐成功！</p>
+    <p class="text-sm text-stone-400">大厨已收到你的点单</p>
+</div>
 
 <!-- Random Picker Button (Fixed) -->
 <div class="fixed z-40" style="bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); right: 1.5rem;">
@@ -204,9 +247,22 @@ function confirmPick() {
         currentSelection = pickedDishId;
         checkPreference(pickedDishId);
         closeModal('random-picker');
-        // Scroll to the select input smoothly
         document.getElementById('dish_id').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
+
+// Success animation on form submit
+document.getElementById('order-form').addEventListener('submit', function(e) {
+    var dishId = document.getElementById('dish_id').value;
+    if (!dishId) return;
+    e.preventDefault();
+    var form = this;
+    var overlay = document.getElementById('success-overlay');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    setTimeout(function() {
+        form.submit();
+    }, 1500);
+});
 </script>
 {% endblock %}

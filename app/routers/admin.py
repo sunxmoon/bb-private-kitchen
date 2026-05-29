@@ -43,7 +43,7 @@ async def users_redirect():
 @router.post("/create-user")
 async def create_user(
     name: str = Form(...),
-    password: str = Form("666"),
+    password: str = Form(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_admin),
 ):
@@ -74,6 +74,8 @@ async def update_user(
             return RedirectResponse(url="/admin?msg=无效的主题色", status_code=303)
         update_data["theme_color"] = theme_color
     if role:
+        if role not in ("admin", "user"):
+            return RedirectResponse(url="/admin?msg=无效的角色", status_code=303)
         update_data["role"] = role
     crud.update_user(db, target_user_id, update_data, current_user.id)
     return RedirectResponse(url="/admin?msg=信息已更新", status_code=303)

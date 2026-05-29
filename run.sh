@@ -36,8 +36,5 @@ else
     echo "agy CLI not found — AI features will be disabled"
 fi
 
-# Seed the database
-python3 seed_db.py
-
-# Run the application
+# Run the application (migrations and seeding run automatically on startup)
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

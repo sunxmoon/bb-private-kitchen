@@ -27,6 +27,7 @@ class Dish(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     image_url = Column(String(512))
+    category = Column(String(50), default="", server_default="")
     created_by = Column(Integer, ForeignKey("users.id"), index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())

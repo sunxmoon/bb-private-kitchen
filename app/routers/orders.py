@@ -19,9 +19,11 @@ async def order_page(
     context = get_common_context(request, db, current_user)
     current_order = crud.get_or_create_current_order(db, current_user.id)
     dishes = crud.get_dishes(db)
+    top_dishes = crud.get_user_top_dishes(db, current_user.id)
     return templates.TemplateResponse(request, "order.html", {
         "current_order": current_order,
         "dishes": dishes,
+        "top_dishes": top_dishes,
         **context,
     })
 
@@ -88,6 +90,7 @@ async def update_item(
         return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=404)
     if item.user_id != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/my-orders?msg=只能修改自己的点单", status_code=303)
+    VALID_STATUSES = {"pending", "completed", "delayed"}
     query_status = request.query_params.get("status")
     query_msg = request.query_params.get("msg", "已更新")
     item_data = {
@@ -98,7 +101,7 @@ async def update_item(
         "remarks": remarks,
     }
     final_status = status or query_status
-    if final_status:
+    if final_status and final_status in VALID_STATUSES:
         item_data["status"] = final_status
     crud.update_order_item(db, item_id, item_data, current_user.id)
     return RedirectResponse(url=f"/my-orders?msg={query_msg}", status_code=303)

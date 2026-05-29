@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 from sqlalchemy import func
@@ -103,12 +103,32 @@ def delete_user(db: Session, user_id: int, actor_id: int):
 def get_dishes(db: Session):
     return db.query(models.Dish).options(selectinload(models.Dish.recipe)).filter(models.Dish.is_active).all()
 
+
+def search_dishes(db: Session, query: str, category: str = ""):
+    stmt = db.query(models.Dish).options(selectinload(models.Dish.recipe)).filter(models.Dish.is_active)
+    if query:
+        stmt = stmt.filter(models.Dish.name.ilike(f"%{query}%"))
+    if category:
+        stmt = stmt.filter(models.Dish.category == category)
+    return stmt.all()
+
+
+def get_dish_categories(db: Session):
+    rows = (
+        db.query(models.Dish.category)
+        .filter(models.Dish.is_active, models.Dish.category != "")
+        .distinct()
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
 def get_dish(db: Session, dish_id: int):
     return db.query(models.Dish).options(selectinload(models.Dish.recipe)).filter(models.Dish.id == dish_id).first()
 
 def create_dish(db: Session, dish: schemas.DishCreate):
     # Idempotency check: Don't create same dish twice in 10 seconds
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     ten_seconds_ago = now - timedelta(seconds=10)
     existing = db.query(models.Dish).filter(
         models.Dish.name == dish.name,
@@ -180,6 +200,7 @@ def get_or_create_current_order(db: Session, user_id: int):
         except Exception:
             db.rollback()
             return get_current_order(db)
+
         create_audit_log(
             db, user_id, "创建订单", "orders", order.id, None, {"status": "open", "created_by": user_id}, commit=False,
         )
@@ -198,7 +219,7 @@ def create_order(db: Session, order: schemas.OrderCreate):
 
 def add_order_item(db: Session, item: schemas.OrderItemCreate):
     # Idempotency check: Don't allow same user to add same dish with same remarks in 10 seconds
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     ten_seconds_ago = now - timedelta(seconds=10)
     existing = db.query(models.OrderItem).filter(
         models.OrderItem.order_id == item.order_id,
@@ -313,6 +334,19 @@ def get_order_history_count(db: Session) -> int:
 
 def get_audit_logs(db: Session, limit: int = 100):
     return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).limit(limit).all()
+
+def get_user_top_dishes(db: Session, user_id: int, limit: int = 5):
+    from sqlalchemy import func as sqlfunc
+    return (
+        db.query(models.Dish, sqlfunc.count(models.OrderItem.id).label("cnt"))
+        .join(models.OrderItem, models.OrderItem.dish_id == models.Dish.id)
+        .filter(models.OrderItem.user_id == user_id, models.Dish.is_active)
+        .group_by(models.Dish.id)
+        .order_by(sqlfunc.count(models.OrderItem.id).desc())
+        .limit(limit)
+        .all()
+    )
+
 
 def get_last_item_preference(db: Session, user_id: int, dish_id: int):
     return db.query(models.OrderItem)\

@@ -31,6 +31,6 @@ def test_logout(client, db):
     crud.create_user(db, schemas.UserCreate(name="testuser", password="password123"))
     token = _csrf(client)
     client.post("/login", data={"name": "testuser", "password": "password123", "csrf_token": token})
-    response = client.get("/logout", follow_redirects=False)
+    response = client.post("/logout", data={"csrf_token": token}, follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"] == "/login"

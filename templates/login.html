@@ -11,17 +11,9 @@
             <p class="text-stone-400 font-medium mt-1 text-sm">登录后开始点餐</p>
         </div>
 
-        {% if request.query_params.get('error') == 'user_not_found' %}
+        {% if request.query_params.get('error') %}
         <div class="card p-4 mb-4 border border-red-200 bg-red-50 text-red-700 text-sm font-medium flex items-center gap-3" role="alert">
-            <i class="fas fa-exclamation-circle text-red-400"></i> 该用户不存在，请检查用户名
-        </div>
-        {% elif request.query_params.get('error') == 'wrong_password' %}
-        <div class="card p-4 mb-4 border border-red-200 bg-red-50 text-red-700 text-sm font-medium flex items-center gap-3" role="alert">
-            <i class="fas fa-exclamation-circle text-red-400"></i> 密码错误，请重试
-        </div>
-        {% elif request.query_params.get('error') %}
-        <div class="card p-4 mb-4 border border-red-200 bg-red-50 text-red-700 text-sm font-medium flex items-center gap-3" role="alert">
-            <i class="fas fa-exclamation-circle text-red-400"></i> 登录失败，请检查用户名和密码
+            <i class="fas fa-exclamation-circle text-red-400"></i> 用户名或密码错误
         </div>
         {% endif %}
 

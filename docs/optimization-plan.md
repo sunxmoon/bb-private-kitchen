@@ -1,763 +1,298 @@
-# 宝宝的私房菜馆 — 优化升级方案
+# 宝宝的私房菜馆 - 优化方案 v2.0
 
-> 基于 PRD 的详细技术实施计划
-> 版本：v1.0 | 日期：2026-05-12
-
----
-
-## 目录
-
-1. [Phase 1：安全加固（High Priority）](#phase-1安全加固)
-2. [Phase 2：数据完整性加固](#phase-2数据完整性加固)
-3. [Phase 3：性能与可扩展性](#phase-3性能与可扩展性)
-4. [Phase 4：代码质量与可维护性](#phase-4代码质量与可维护性)
-5. [Phase 5：UI/UX 精细化](#phase-5uiux-精细化)
-6. [Phase 6：测试与部署](#phase-6测试与部署)
-7. [附录：文件变更清单](#附录文件变更清单)
+> 版本：v2.0 | 日期：2026-05-30
+> 基于产品设计、架构技术、安全质量三个维度独立评审后的综合方案
 
 ---
 
-## Phase 1：安全加固
+## 评审综合结论
 
-### 1.1 审计日志密码脱敏
+### 砍掉的方案（过度设计，评审否决）
 
-**问题**：`crud.py` 中 `update_user` 将完整的 `old_values` / `new_values`（包含 `password` 哈希）写入 `audit_logs` 表。
-
-**方案**：
-
-在 `crud.py` 的 `json_serializable` 函数中增加敏感字段过滤：
-
-```python
-SENSITIVE_FIELDS = {"password", "token", "secret"}
-
-def json_serializable(data: dict, skip_sensitive: bool = True) -> dict:
-    if not data:
-        return data
-    serializable = {}
-    for key, value in data.items():
-        if skip_sensitive and key in SENSITIVE_FIELDS:
-            continue
-        if isinstance(value, datetime):
-            serializable[key] = value.isoformat()
-        else:
-            serializable[key] = value
-    return serializable
-```
-
-**改动文件**：`app/crud.py`
-
----
-
-### 1.2 CSRF 防护
-
-**问题**：所有 POST 端点仅依赖 Cookie 认证，无 CSRF Token 校验，存在跨站请求伪造风险。
-
-**方案**：使用 `itsdangerous`（Flask 签名工具，轻量级）实现 CSRF Token 机制：
-
-1. **安装依赖**：`itsdangerous`（额外安装，或使用 `signed_cookie` 机制）
-
-2. **中间件设计**：
-
-```
-请求流程：
-GET 页面 → 服务端在响应中设置 CSRF cookie（签名后的 token）
-POST 请求 → 前端从 cookie 读取 token，在表单 hidden input 中提交
-           服务端校验提交的 token 与 cookie 中的签名是否匹配
-```
-
-3. **实现步骤**：
-
-**新增文件**：`app/csrf.py`
-
-```python
-from itsdangerous import URLSafeTimedSerializer
-from fastapi import Request, HTTPException
-from starlette.status import HTTP_403_FORBIDDEN
-
-SECRET_KEY = os.getenv("CSRF_SECRET_KEY", "change-this-in-production")
-CSRF_TOKEN_NAME = "csrf_token"
-SALT = "csrf-salt"
-
-serializer = URLSafeTimedSerializer(secret_key=SECRET_KEY, salt=SALT)
-
-def generate_csrf_token() -> str:
-    return serializer.dumps("csrf")
-
-def validate_csrf_token(token: str, max_age: int = 3600) -> bool:
-    try:
-        serializer.loads(token, max_age=max_age)
-        return True
-    except Exception:
-        return False
-
-async def csrf_guard(request: Request):
-    if request.method == "POST":
-        token = (await request.form()).get(CSRF_TOKEN_NAME)
-        cookie_token = request.cookies.get(CSRF_TOKEN_NAME)
-        if not token or not cookie_token or token != cookie_token:
-            raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="CSRF validation failed")
-```
-
-4. **模板集成**：在 `base.html` 的全局表单中自动注入 CSRF 字段：
-
-```html
-<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-```
-
-**注意**：家庭内部应用可暂缓此改造，但若暴露于外网则为必须。
-
-**改动文件**：
-- 新增 `app/csrf.py`
-- 修改 `app/main.py`（增加 `csrf_guard` 依赖注入）
-- 修改 `templates/base.html`（传递并注入 csrf_token）
-
----
-
-### 1.3 登录错误提示优化
-
-**问题**：登录失败统一返回 `/login?error=1`，无法区分"用户不存在"和"密码错误"。
-
-**方案**：
-
-修改 `main.py` 中登录逻辑：
-
-```python
-@app.post("/login")
-async def login(name: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    user = crud.get_user_by_name(db, name)
-    if not user:
-        return RedirectResponse(url="/login?error=user_not_found", status_code=303)
-    if not security.verify_password(password, user.password):
-        return RedirectResponse(url="/login?error=wrong_password", status_code=303)
-    response = RedirectResponse(url="/", status_code=303)
-    response.set_cookie(key="user_id", value=str(user.id), httponly=True, samesite="lax")
-    return response
-```
-
-模板 `login.html` 中显示对应错误消息：
-
-```html
-{% if request.query_params.get('error') == 'user_not_found' %}
-  <p class="text-red-500 text-sm">该用户不存在</p>
-{% elif request.query_params.get('error') == 'wrong_password' %}
-  <p class="text-red-500 text-sm">密码错误，请重试</p>
-{% endif %}
-```
-
-**改动文件**：
-- `app/main.py`
-- `templates/login.html`
-
----
-
-### 1.4 `.gitignore` 安全加固
-
-**问题**：`.gitignore` 中未包含 `.env`，生产数据库密码存在泄露风险。
-
-**方案**：补全 `.gitignore`：
-
-```gitignore
-.env
-*.pyc
-__pycache__/
-.pytest_cache/
-static/uploads/*
-static/backgrounds/*
-!static/uploads/.gitkeep
-!static/backgrounds/.gitkeep
-```
-
-**改动文件**：`.gitignore`
-
----
-
-## Phase 2：数据完整性加固
-
-### 2.1 并发订单约束
-
-**问题**：当前通过 `status == "open"` 查询最新订单，无 SQL 层约束，并发场景下可能创建多个 open 订单。
-
-**方案 A（推荐）**：数据库部分唯一索引（PostgreSQL）
-
-```
-CREATE UNIQUE INDEX idx_unique_open_order ON orders (status) WHERE status = 'open';
-```
-
-方案 A 需要在数据库中手动执行或通过 Alembic 迁移。
-
-**方案 B（应用层锁）**：
-
-修改 `get_current_order` 和 `create_order`：
-
-```python
-from contextlib import contextmanager
-from sqlalchemy import event
-import threading
-
-# 应用层写锁
-_order_lock = threading.Lock()
-
-def get_or_create_current_order(db: Session, user_id: int) -> models.Order:
-    with _order_lock:
-        current_order = db.query(models.Order).filter(models.Order.status == "open").order_by(models.Order.created_at.desc()).first()
-        if not current_order:
-            current_order = models.Order(status="open", created_by=user_id)
-            db.add(current_order)
-            db.flush()
-        return current_order
-```
-
-**推荐先实施方案 B 后补方案 A**。
-
-**改动文件**：
-- `app/crud.py`（修改 `get_current_order` / `create_order`）
-
----
-
-### 2.2 防重复提交后端加固
-
-**问题**：现有 10 秒窗口去重依赖 `created_at` 时间戳判断，精度依赖服务器时间。
-
-**方案**：改为基于 Redis 或内存缓存的去重标记（可选升级），当前方案维持不变但增加时区感知：
-
-```python
-def create_dish(db: Session, dish: schemas.DishCreate):
-    ten_seconds_ago = datetime.utcnow() - timedelta(seconds=10)  # 使用 UTC 避免时区问题
-    existing = db.query(models.Dish).filter(
-        models.Dish.name == dish.name,
-        models.Dish.created_by == dish.created_by,
-        models.Dish.created_at >= ten_seconds_ago
-    ).first()
-    ...
-```
-
-**改动文件**：
-- `app/crud.py`
-
----
-
-### 2.3 软删除菜品引用检查
-
-**问题**：下架菜品时未检查是否有未完成的 `order_items` 依赖该菜品。
-
-**方案**：
-
-```python
-def delete_dish(db: Session, dish_id: int, user_id: int):
-    db_dish = db.query(models.Dish).filter(models.Dish.id == dish_id).first()
-    if not db_dish:
-        return None
-    # 检查是否有未完成的订单项引用该菜品
-    pending_items = db.query(models.OrderItem).filter(
-        models.OrderItem.dish_id == dish_id,
-        models.OrderItem.status.in_(["pending", "delayed"])
-    ).count()
-    if pending_items > 0:
-        raise ValueError(f"该菜品有 {pending_items} 个未完成的点单，无法下架")
-    ...
-```
-
-**改动文件**：`app/crud.py` + `app/main.py`（捕获 ValueError）
-
----
-
-## Phase 3：性能与可扩展性
-
-### 3.1 历史订单分页
-
-**问题**：`get_order_history` 一次性加载所有订单，数据量增长后页面卡顿。
-
-**方案**：
-
-```python
-def get_order_history(db: Session, skip: int = 0, limit: int = 20):
-    return db.query(models.Order).order_by(models.Order.created_at.desc()).offset(skip).limit(limit).all()
-
-def get_order_history_count(db: Session) -> int:
-    return db.query(models.Order).count()
-```
-
-模板端增加分页控件：
-
-```html
-{% if orders|length >= 20 %}
-<div class="flex justify-center gap-4 mt-6">
-  {% if page > 1 %}
-    <a href="/history?page={{ page - 1 }}" class="btn btn-secondary">上一页</a>
-  {% endif %}
-  <span class="self-center text-sm text-gray-500">第 {{ page }} / {{ total_pages }} 页</span>
-  {% if page < total_pages %}
-    <a href="/history?page={{ page + 1 }}" class="btn btn-secondary">下一页</a>
-  {% endif %}
-</div>
-{% endif %}
-```
-
-**改动文件**：
-- `app/crud.py`
-- `app/main.py`
-- `templates/history.html`
-
----
-
-### 3.2 N+1 查询优化
-
-**问题**：遍历订单及其 items/dish/user 时，ORM 懒加载会触发大量额外查询。
-
-**方案**：使用 `joinedload` 或 `selectinload` 预加载关系：
-
-```python
-from sqlalchemy.orm import joinedload, selectinload
-
-def get_orders_with_items(db: Session):
-    return db.query(models.Order).options(
-        selectinload(models.Order.items).selectinload(models.OrderItem.dish),
-        selectinload(models.Order.items).selectinload(models.OrderItem.user)
-    ).order_by(models.Order.created_at.desc()).all()
-```
-
-**改动文件**：`app/crud.py`
-
----
-
-## Phase 4：代码质量与可维护性
-
-### 4.1 路由模块拆分
-
-**问题**：`main.py` 包含所有路由，已达 250+ 行，不利于维护。
-
-**方案**：按业务域拆分为独立路由模块：
-
-```
-app/
-├── main.py              # 应用入口 + 全局配置 + include_router
-├── routers/
-│   ├── __init__.py
-│   ├── auth.py          # /login, /logout
-│   ├── dishes.py        # /, /create-dish, /update-dish, /delete-dish, /get-preference
-│   ├── orders.py        # /order, /add-item, /my-orders, /update-item, etc.
-│   ├── users.py         # /users, /create-user, /update-user, /delete-user
-│   └── history.py       # /history
-├── dependencies.py      # get_current_user, login_required, get_db (shared)
-├── models.py
-├── schemas.py
-├── crud.py
-├── database.py
-└── security.py
-```
-
-**示例** - `app/routers/auth.py`：
-
-```python
-from fastapi import APIRouter, Depends, Form
-from fastapi.responses import RedirectResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from ..database import get_db
-from .. import crud
-
-router = APIRouter(prefix="", tags=["auth"])
-templates = Jinja2Templates(directory="templates")
-
-@router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    ...
-
-@router.post("/login")
-async def login(name: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    ...
-
-@router.get("/logout")
-async def logout():
-    ...
-```
-
-`app/main.py` 精简为：
-
-```python
-from fastapi import FastAPI
-from .routers import auth, dishes, orders, users, history
-
-app = FastAPI(title="宝宝的私房菜馆")
-app.include_router(auth.router)
-app.include_router(dishes.router)
-app.include_router(orders.router)
-app.include_router(users.router)
-app.include_router(history.router)
-```
-
-**新增文件**：
-- `app/routers/__init__.py`
-- `app/routers/auth.py`
-- `app/routers/dishes.py`
-- `app/routers/orders.py`
-- `app/routers/users.py`
-- `app/routers/history.py`
-- `app/dependencies.py`（公共依赖项提取）
-
-**修改文件**：`app/main.py`（精简为入口文件）
-
----
-
-### 4.2 清理未使用 import
-
-**问题**：`main.py` 中存在 `shutil`、`Response`、`HTTPException` 等未使用的 import。
-
-**方案**：在路由拆分后统一清理，使用 `ruff` 或 `autoflake` 自动化：
-
-```bash
-pip install autoflake
-autoflake --in-place --remove-all-unused-imports app/*.py app/routers/*.py
-```
-
-**改动文件**：拆分后全量清理
-
----
-
-### 4.3 路由层空值检查
-
-**问题**：CRUD 函数返回 `None` 时路由层未处理，导致静默失败或 500 错误。
-
-**方案**：统一添加 404 检查：
-
-```python
-@app.post("/update-user/{target_user_id}")
-async def update_user(target_user_id: int, ..., db: Session = Depends(get_db)):
-    target_user = crud.get_user(db, target_user_id)
-    if not target_user:
-        return RedirectResponse(url="/users?error=user_not_found", status_code=404)
-    ...
-```
-
-**改动文件**：所有涉及 `get_*` 后操作的 POST 路由
-
----
-
-### 4.4 初始化 Alembic 迁移
-
-**问题**：当前使用 `create_all` 管理 schema，不适合生产环境演进。
-
-**方案**：
-
-```bash
-pip install alembic
-alembic init alembic
-# 修改 alembic.ini 中 sqlalchemy.url = %DATABASE_URL%
-# 修改 alembic/env.py 导入 Base.metadata
-# 生成初始迁移
-alembic revision --autogenerate -m "initial migration"
-alembic upgrade head
-```
-
-将 `on_startup` 中的 `create_all` 替换为仅在开发环境使用：
-
-```python
-@app.on_event("startup")
-def on_startup():
-    if os.getenv("TESTING") == "1":
-        models.Base.metadata.create_all(bind=engine)
-    # 生产环境通过 alembic upgrade head 管理
-```
-
-**新增文件**：`alembic/` 目录
-
-**修改文件**：`app/main.py`
-
----
-
-## Phase 5：UI/UX 精细化
-
-基于 UI-UX-Pro-Max 设计准则，针对当前 UI 进行以下优化：
-
-### 5.1 触摸交互优化
-
-**问题**：按钮在提交后无加载状态反馈，部分 touch target 尺寸偏小。
-
-**方案**：
-
-在 `base.html` 的全局 JS 中增强表单提交体验：
-
-```javascript
-// 增强 btn-loading 行为
-document.querySelectorAll('form').forEach(form => {
-  form.addEventListener('submit', function(e) {
-    const btns = this.querySelectorAll('.btn-loading');
-    btns.forEach(btn => {
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> 处理中...';
-    });
-  });
-});
-```
-
-所有操作按钮统一 touch target ≥ 44px（Tailwind 中通过 `min-h-[44px]` 保证）：
-
-```html
-<button class="btn btn-primary min-h-[44px] min-w-[44px]">提交</button>
-```
-
-**改动文件**：
-- `templates/base.html`（JS 增强）
-- `templates/*.html`（按钮尺寸统一）
-
----
-
-### 5.2 表单体验提升
-
-**问题**：表单错误反馈不足，部分表单依赖 placeholder 而非 label。
-
-**方案**：
-
-1. **添加可见 label**：每个输入框增加 `<label>` 标签，替代仅 placeholder 的方案
-2. **内联验证**：对必填字段添加 `required` 属性和 `aria-required="true"`
-3. **密码切换**：登录表单增加密码显隐切换按钮
-
-```html
-<div class="form-control">
-  <label for="dish-name" class="label">
-    <span class="label-text">菜品名称 <span class="text-red-500">*</span></span>
-  </label>
-  <input id="dish-name" name="name" type="text" required aria-required="true"
-         class="input input-bordered w-full" placeholder="输入菜品名称">
-</div>
-```
-
-**密码显隐**：
-
-```javascript
-function togglePassword(inputId) {
-  const input = document.getElementById(inputId);
-  input.type = input.type === 'password' ? 'text' : 'password';
-}
-```
-
-**改动文件**：`templates/login.html`, `templates/order.html`, `templates/index.html`
-
----
-
-### 5.3 空状态与反馈优化
-
-**问题**：没有菜品/没有订单时页面空白，无引导提示。
-
-**方案**：
-
-```html
-{% if not dishes %}
-<div class="flex flex-col items-center justify-center py-16 text-gray-400">
-  <svg class="w-16 h-16 mb-4" ...> <!-- 空状态图标 --> </svg>
-  <p class="text-lg">还没有菜品</p>
-  <p class="text-sm mt-2">点击上方"添加菜品"按钮收录第一道菜吧！</p>
-</div>
-{% endif %}
-```
-
-**改动文件**：
-- `templates/index.html`（菜品空状态）
-- `templates/my_orders.html`（订单项空状态）
-- `templates/history.html`（无历史记录空状态）
-
----
-
-### 5.4 Toast 通知优化
-
-**问题**：当前 Toast 用 `alert` 样式实现，位置固定体验一般。
-
-**方案**：优化为固定在右上角、自动消失的浮动 Toast：
-
-```javascript
-function showToast(message, type = 'success') {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-  const colors = { success: 'alert-success', error: 'alert-error', info: 'alert-info' };
-  const toast = document.createElement('div');
-  toast.className = `alert ${colors[type] || colors.info} shadow-lg mb-2 transition-all duration-300`;
-  toast.innerHTML = `<span>${message}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(100%)';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-```
-
-```html
-<!-- 在 base.html 中固定位置 -->
-<div id="toast-container" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm"></div>
-```
-
-**改动文件**：`templates/base.html`
-
----
-
-### 5.5 可访问性（Accessibility）
-
-**问题**：缺少 aria 标签、焦点管理、键盘导航支持。
-
-**方案**：
-
-1. **导航栏**：增加 `aria-current="page"` 标记当前页
-2. **图标按钮**：增加 `aria-label`
-3. **模态框**：增加 `role="dialog"`, `aria-modal="true"`, 焦点锁定
-4. **颜色对比度**：确保正文文本 ≥ 4.5:1（当前 Tailwind gray-700 在白色背景约为 4.6:1，基本达标）
-
-```html
-<nav aria-label="主导航">
-  <a href="/" aria-current="{% if request.url.path == '/' %}page{% endif %}" class="...">
-    ...
-  </a>
-</nav>
-```
-
-**改动文件**：`templates/base.html`, `templates/*.html`
-
----
-
-## Phase 6：测试与部署
-
-### 6.1 测试覆盖提升
-
-**问题**：当前测试覆盖 CRUD + 认证，缺少订单生命周期、错误场景、CSRF、分页测试。
-
-**新增测试用例**：
-
-| 测试文件 | 新增用例 | 数量 |
-|---------|---------|------|
-| `tests/test_auth.py` | 未认证访问保护端点重定向到 `/login` | +2 |
-| `tests/test_crud.py` | 更新不存在的用户返回 None | +3 |
-| `tests/test_orders.py` | 创建订单 → 添加项 → 更新状态 → 删除项的完整生命周期 | +5 |
-| `tests/test_pagination.py` | 分页参数测试 | +2 |
-| `tests/test_idempotency.py` | 不同备注非重复、超 10s 可重复 | +2 |
-
-**新增文件**：
-- `tests/test_orders.py`
-- `tests/test_pagination.py`
-
-**安装覆盖度工具**：
-
-```bash
-pip install pytest-cov
-TESTING=1 PYTHONPATH=. pytest tests/ --cov=app --cov-report=term-missing
-```
-
----
-
-### 6.2 Docker 部署优化
-
-**问题**：Compose 文件中缺少数据库服务，依赖外部 PostgreSQL。
-
-**方案**：在 `docker-compose.yml` 中增加可选的 `db` 服务（通过环境变量 `USE_EXTERNAL_DB` 切换）：
-
-```yaml
-version: '3.8'
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: moon
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ordering_db
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    profiles:
-      - with-db
-
-  web:
-    build: .
-    ports:
-      - "8002:8000"
-    env_file: .env
-    depends_on:
-      - db
-    profiles:
-      - with-db
-
-volumes:
-  pgdata:
-```
-
-**改动文件**：`docker-compose.yml`
-
----
-
-### 6.3 配置管理优化
-
-**问题**：硬编码上传路径前缀 `/`，依赖工作目录。
-
-**方案**：在 `.env` 中增加配置变量：
-
-```env
-UPLOAD_URL_PREFIX=/static
-UPLOAD_DIR=static
-```
-
-代码中读取：
-
-```python
-UPLOAD_URL_PREFIX = os.getenv("UPLOAD_URL_PREFIX", "/static")
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "static")
-
-def save_upload_file(file: UploadFile, subdir: str) -> str:
-    destination_dir = os.path.join(UPLOAD_DIR, subdir)
-    os.makedirs(destination_dir, exist_ok=True)
-    ...
-    return f"{UPLOAD_URL_PREFIX}/{subdir}/{filename}"
-```
-
-**改动文件**：
-- `.env.example`
-- `app/main.py`
-- `app/crud.py`（如有路径相关）
-
----
-
-## 实施路线图
-
-| 阶段 | 内容 | 预估工时 | 依赖 |
-|------|------|---------|------|
-| **Sprint 1** | 安全加固（1.1, 1.3, 1.4 + 测试） | 1 天 | 无 |
-| **Sprint 2** | 数据完整性（2.1, 2.2, 2.3 + 测试） | 1 天 | Sprint 1 |
-| **Sprint 3** | 路由拆分 + 代码清理（4.1, 4.2, 4.3, 4.4） | 1.5 天 | Sprint 1 |
-| **Sprint 4** | 性能优化（3.1, 3.2） | 0.5 天 | Sprint 3 |
-| **Sprint 5** | UI/UX 优化（5.1 - 5.5） | 1 天 | 无 |
-| **Sprint 6** | 测试覆盖 + 部署优化（6.1, 6.2, 6.3） | 1 天 | Sprint 1-4 |
-
-**总计**：约 6 天（可按需调整优先级和范围）
-
----
-
-## 附录：文件变更清单
-
-### 新增文件（10 个）
-
-| 文件 | 用途 |
-|------|------|
-| `app/csrf.py` | CSRF Token 生成与校验 |
-| `app/dependencies.py` | 公共 FastAPI 依赖项 |
-| `app/routers/__init__.py` | 路由包初始化 |
-| `app/routers/auth.py` | 认证路由 |
-| `app/routers/dishes.py` | 菜品路由 |
-| `app/routers/orders.py` | 订单路由 |
-| `app/routers/users.py` | 用户管理路由 |
-| `app/routers/history.py` | 历史记录路由 |
-| `alembic/`（目录） | 数据库迁移 |
-| `tests/test_orders.py` | 订单测试 |
-
-### 修改文件（12 个）
-
-| 文件 | 修改内容 |
+| 方案 | 否决理由 |
 |------|---------|
-| `app/main.py` | 精简为入口 + include_router |
-| `app/crud.py` | 脱敏、并发锁、引用检查、分页、N+1 优化 |
-| `.gitignore` | 添加 .env / 上传目录排除 |
-| `templates/base.html` | Toast 容器、CSRF token、触摸反馈 JS、aria 属性 |
-| `templates/login.html` | 区分错误提示、密码显隐 |
-| `templates/index.html` | 空状态、表单 label |
-| `templates/order.html` | 表单优化 |
-| `templates/my_orders.html` | 空状态、触摸优化 |
-| `templates/history.html` | 分页控件、空状态 |
-| `docker-compose.yml` | 可选 db 服务 |
-| `.env.example` | 新增配置项 |
-| `requirements.txt` | 新增依赖（itsdangerous, pytest-cov） |
+| Redis 速率限制/会话 | 家庭单进程内存足够，多一个组件多一份运维负担 |
+| 异步 SQLAlchemy | 瓶颈在 AI 调用（120s），不在 DB，改写 380+ 行 CRUD 不值得 |
+| Celery/RQ 任务队列 | 用 `asyncio.create_task` + 前端轮询替代 |
+| WebSocket | HTMX polling 或 SSE 够用，WebSocket 运维复杂度过高 |
+| API 版本管理 (/api/v1/) | SSR + HTMX 应用无独立前端消费者，无多版本并行需求 |
+| PWA 离线缓存 | 家庭 Wi-Fi 环境无离线需求 |
+| 多轮菜单/多会话 | 增加认知负担，单会话已满足核心场景 |
+| OWASP ZAP 自动化渗透 | 企业级需求，内网应用 ROI 极低 |
+| 密钥轮换方案 | 改 secret = 所有用户 session 失效，家庭场景无此需求 |
+| 事务回滚测试隔离 | 当前 create_all/drop_all 方案更安全（SQLite savepoint 支持不完整） |
+
+### 核心发现（原方案遗漏）
+
+1. **登录枚举漏洞** — `auth.py` 分别返回 "用户不存在" 和 "密码错误"，可被枚举有效用户名
+2. **最大体验痛点** — "看菜单"和"点餐"是两个独立页面，流程割裂（产品评审认定）
+3. **datetime 无时区** — `crud.py` 中 `datetime.now()` 未用 timezone-aware，跨时区会出问题
+4. **Dockerfile 版本未锁定** — `uv:latest` 导致构建不可复现
+
+---
+
+## 第一阶段：安全加固 + 核心体验（1-2周）
+
+> 目标：消除安全风险，修复最大体验痛点
+
+### 1.1 安全响应头中间件
+
+**文件**: `app/main.py`
+**工作量**: 30分钟
+
+添加中间件，统一设置：
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Content-Security-Policy`（限制 style/script/font 来源）
+- 生产环境额外 `Strict-Transport-Security`
+
+**收益**: 从零防护到基础防护，一个中间件覆盖 5+ 个安全头
+
+### 1.2 修复登录枚举漏洞
+
+**文件**: `app/routers/auth.py`, `templates/login.html`
+**工作量**: 10分钟
+
+将 `/login` POST 的错误响应统一为 "用户名或密码错误"，不再区分用户不存在和密码错误。审计日志中仍记录具体失败原因（用于运维排查）。
+
+**收益**: 防止用户名枚举攻击
+
+### 1.3 生产环境错误处理
+
+**文件**: `app/main.py`, `templates/error.html`
+**工作量**: 15分钟
+
+确认 `global_exception_handler` 不泄露栈信息；`error.html` 模板中生产环境隐藏技术细节，仅显示友好提示。
+
+**收益**: 防止信息泄露
+
+### 1.4 密码策略
+
+**文件**: `app/schemas.py`, `app/routers/admin.py`
+**工作量**: 20分钟
+
+创建/修改密码时校验最小长度（8位）。默认密码 "666" 仅用于种子数据，不强制策略。
+
+**收益**: 提升密码强度基线
+
+### 1.5 Alembic 数据库迁移
+
+**工作量**: 2-3小时
+
+- 引入 Alembic，将 `main.py` 中的 4 个 `_migrate_*` 函数转换为版本化迁移脚本
+- 移除 `main.py` 和 `seed_db.py` 中的内嵌迁移代码
+- 初始迁移包含当前全部 schema
+- `lifespan` 中改为 `alembic upgrade head`
+
+**收益**: 消除最大技术债，支持版本追踪和回滚，消除多实例竞态风险
+
+### 1.6 健康检查端点
+
+**文件**: `app/main.py`, `Dockerfile`
+**工作量**: 30分钟
+
+- 新增 `GET /health`，检查 DB 连通性，AI 状态降级为可选（不阻塞容器健康）
+- Dockerfile HEALTHCHECK 改为访问 `/health`（当前访问 `/login` 语义错误且污染日志）
+
+**收益**: 语义正确的健康检查
+
+### 1.7 修复 datetime 时区
+
+**文件**: `app/crud.py`
+**工作量**: 30分钟
+
+将所有 `datetime.now()` 替换为 `datetime.now(timezone.utc)`。模型的 `server_default=func.now()` 保持不变（数据库时区）。
+
+**收益**: 避免跨时区数据混乱
+
+### 1.8 锁定 Dockerfile 版本
+
+**文件**: `Dockerfile`
+**工作量**: 5分钟
+
+将 `ghcr.io/astral-sh/uv:latest` 替换为具体版本号（如 `0.6.0`）。
+
+**收益**: 构建可复现
+
+### 1.9 首页一键点餐（体验核心）
+
+**文件**: `templates/index.html`, `app/routers/dishes.py`
+**工作量**: 1小时
+
+在菜品卡片上添加 "我要吃" 按钮，点击后跳转到点餐页并预选该菜品（URL 参数 `?dish_id=X`）。`order.html` 已有 URL 参数解析逻辑，只需确保跳转正确。
+
+**收益**: 消除"看菜单"和"点餐"的流程割裂 — 产品评审认定的最大体验痛点
+
+---
+
+## 第二阶段：质量提升 + 功能增强（2-3周）
+
+> 目标：提升代码质量和运维能力，增强核心功能
+
+### 2.1 AI 客户端重试机制
+
+**文件**: `app/ai_client.py`
+**工作量**: 1小时
+
+`_call_api` 方法添加指数退避重试（最多3次，间隔 2s/4s/8s），区分可重试错误（超时、5xx）和不可重试错误（4xx）。
+
+**收益**: 提升 AI 菜谱生成成功率（当前仅有 120s 超时，无重试）
+
+### 2.2 结构化日志
+
+**文件**: `app/main.py`, 各 router
+**工作量**: 2-3小时
+
+引入 `structlog`，日志输出 JSON 格式，包含 request_id、user_id、action 等字段。替换现有 `logging.info` 调用。
+
+**收益**: 可查询、可过滤的结构化日志，便于排查问题
+
+### 2.3 连接池调优 + 静态文件缓存
+
+**文件**: `app/database.py`, `app/main.py`
+**工作量**: 30分钟
+
+- SQLAlchemy 连接池参数：`pool_size=5, max_overflow=10, pool_recycle=3600`
+- 静态文件添加 `Cache-Control: public, max-age=86400`（CSS/JS），上传图片 `max-age=3600`
+
+**收益**: 减少 DB 连接开销，加速静态资源加载
+
+### 2.4 点餐页展示当前订单摘要
+
+**文件**: `templates/order.html`, `app/routers/orders.py`
+**工作量**: 2小时
+
+在点餐页顶部展示当前订单已有点餐项摘要，如"哥哥已点 红烧肉、姐姐已点 番茄蛋汤"。通过 HTMX polling（30秒）自动更新。
+
+**收益**: 提升信息密度，避免重复点餐或遗漏
+
+### 2.5 后端菜品搜索
+
+**文件**: `app/routers/dishes.py`, `app/crud.py`, `templates/index.html`
+**工作量**: 2小时
+
+将前端 JS 过滤改为后端模糊匹配（`ILIKE`），支持分页。首页搜索框改为 HTMX 触发，输入时实时请求后端。
+
+**收益**: 支持大数据量菜品搜索，前端过滤在菜品多时性能差
+
+### 2.6 CI Pipeline
+
+**新增**: `.github/workflows/ci.yml`
+**工作量**: 2小时
+
+- lint (ruff check)
+- test (pytest --cov=app)
+- coverage threshold (≥70%)
+- 依赖安全扫描 (pip-audit)
+
+**收益**: 代码质量自动化保障
+
+### 2.7 菜品分类标签
+
+**文件**: `app/models.py`, `app/schemas.py`, `app/crud.py`, `templates/index.html`
+**工作量**: 3小时
+
+Dish 模型新增 `category` 字段（如：荤菜/素菜/汤品/主食/甜品），首页按分类筛选，添加菜品时选择分类。
+
+**收益**: 菜品多时提升浏览效率
+
+---
+
+## 第三阶段：产品完善 + 实时体验（3-4周）
+
+> 目标：打磨细节，提升使用愉悦感
+
+### 3.1 空状态引导
+
+**文件**: `templates/index.html`, `templates/my_orders.html`
+**工作量**: 1小时
+
+- 首次使用无菜品时显示引导卡片 "添加第一道菜"
+- 无订单时显示 "开始点餐" 引导
+- 无历史记录时显示 "还没有点过菜，快去试试吧"
+
+**收益**: 降低新用户认知门槛
+
+### 3.2 最近常点 + 一键再来一份
+
+**文件**: `app/crud.py`, `app/routers/orders.py`, `templates/order.html`
+**工作量**: 2小时
+
+- 点餐页新增"最近常点"区域，展示该用户历史点餐最多的 5 道菜，点击直接填入
+- "我的订单"页面，已完成的订单项旁添加"再来一份"按钮
+
+**收益**: 减少重复操作，提升复购效率
+
+### 3.3 订单页自动刷新
+
+**文件**: `templates/my_orders.html`
+**工作量**: 30分钟
+
+使用 HTMX `hx-trigger="every 10s"` 对订单列表进行轮询刷新，替代手动刷新。
+
+**收益**: 多人协作时实时看到他人的点餐
+
+### 3.4 SSE 实时推送
+
+**文件**: `app/routers/orders.py`, `templates/my_orders.html`
+**工作量**: 3-4小时
+
+使用 Server-Sent Events 推送订单变更事件。HTMX 通过 `htmx:sse` 扩展接收。比 WebSocket 轻量，与现有 HTMX 架构天然契合。
+
+**收益**: 订单变更即时感知，替代 polling
+
+### 3.5 点餐成功反馈动画
+
+**文件**: `templates/order.html`
+**工作量**: 1小时
+
+点餐提交后显示愉悦的成功动画（浮动餐具图标 + "点餐成功！"），1.5秒后跳转。
+
+**收益**: 提升点餐仪式感和参与感，家庭场景中孩子会喜欢
+
+### 3.6 无图菜品温和提示
+
+**文件**: `templates/index.html`
+**工作量**: 30分钟
+
+对无图片的菜品卡片显示"缺一张美照"的柔和提示，引导家人拍照上传。有图菜品的点餐率显著高于无图。
+
+**收益**: 引导完善菜品信息
+
+---
+
+## 时间线总览
+
+```
+第一阶段（1-2周）            第二阶段（2-3周）            第三阶段（3-4周）
+┌────────────────────┐    ┌────────────────────┐    ┌────────────────────┐
+│ 1.1 安全响应头       │    │ 2.1 AI 重试机制      │    │ 3.1 空状态引导       │
+│ 1.2 登录枚举修复     │    │ 2.2 结构化日志       │    │ 3.2 最近常点         │
+│ 1.3 生产错误处理     │    │ 2.3 连接池+缓存      │    │ 3.3 订单自动刷新     │
+│ 1.4 密码策略         │    │ 2.4 订单摘要展示     │    │ 3.4 SSE 实时推送     │
+│ 1.5 Alembic 迁移    │    │ 2.5 后端菜品搜索     │    │ 3.5 点餐成功动画     │
+│ 1.6 健康检查         │    │ 2.6 CI Pipeline     │    │ 3.6 无图菜品提示     │
+│ 1.7 datetime 时区   │    │ 2.7 菜品分类标签     │    │                     │
+│ 1.8 Dockerfile 版本 │    │                     │    │                     │
+│ 1.9 首页一键点餐     │    │                     │    │                     │
+└────────────────────┘    └────────────────────┘    └────────────────────┘
+```
+
+## 工作量估算
+
+| 阶段 | 预估工时 | 核心产出 |
+|------|---------|---------|
+| 第一阶段 | 8-10 小时 | 安全基线 + 核心体验修复 |
+| 第二阶段 | 12-15 小时 | 质量保障 + 功能增强 |
+| 第三阶段 | 8-10 小时 | 产品打磨 + 实时体验 |
+| **总计** | **28-35 小时** | **约 3-4 周** |
+
+## 评审 Agent 签核
+
+| 角色 | 结论 | 关键意见 |
+|------|------|---------|
+| 产品设计 | 通过（附调整） | 最大痛点是流程割裂，PWA/多会话/WebSocket 砍掉 |
+| 架构技术 | 通过（附调整） | Redis/Celery/async ORM 砍掉，SSE 替代 WebSocket |
+| 安全质量 | 通过（附调整） | 登录枚举是关键发现，第三阶段安全措施过度砍掉 |

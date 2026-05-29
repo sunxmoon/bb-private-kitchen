@@ -5,10 +5,10 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from .. import crud, models
+from ..ai_client import ai_client
 from ..csrf import get_csrf_token
 from ..database import get_db
 from ..dependencies import login_required, templates
-from ..ai_client import ai_client
 
 logger = logging.getLogger(__name__)
 

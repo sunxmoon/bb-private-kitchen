@@ -17,11 +17,28 @@
 <div class="mb-4">
     <div class="relative group">
         <i class="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-orange-400 transition-colors z-10 pointer-events-none"></i>
-        <input type="text" id="dish-search" placeholder="搜索你心仪的菜品..."
-               class="input !pl-12 bg-white border-stone-200 focus:border-orange-300 focus:ring-4 focus:ring-orange-500/5 transition-all" 
-               oninput="filterDishes(this.value)">
+        <input type="text" id="dish-search" name="q" value="{{ search_query or '' }}" placeholder="搜索你心仪的菜品..."
+               class="input !pl-12 bg-white border-stone-200 focus:border-orange-300 focus:ring-4 focus:ring-orange-500/5 transition-all"
+               hx-get="/"
+               hx-trigger="input changed delay:300ms, search"
+               hx-target="#dish-list-container"
+               hx-swap="outerHTML"
+               hx-include="[name='q']">
     </div>
 </div>
+
+{% if categories %}
+<div class="mb-4 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+    <a href="/"
+       class="text-[11px] font-bold px-3 py-1.5 rounded-lg shrink-0 transition-all {% if not current_category %}text-white shadow-sm{% else %}text-stone-400 bg-stone-50 hover:bg-stone-100{% endif %}"
+       {% if not current_category %}style="background:var(--brand)"{% endif %}>全部</a>
+    {% for cat in categories %}
+    <a href="/?cat={{ cat }}{% if search_query %}&q={{ search_query }}{% endif %}"
+       class="text-[11px] font-bold px-3 py-1.5 rounded-lg shrink-0 transition-all {% if current_category == cat %}text-white shadow-sm{% else %}text-stone-400 bg-stone-50 hover:bg-stone-100{% endif %}"
+       {% if current_category == cat %}style="background:var(--brand)"{% endif %}>{{ cat }}</a>
+    {% endfor %}
+</div>
+{% endif %}
 
 <!-- Add Dish Modal -->
 <div id="add-dish-modal" class="hidden modal-overlay fixed inset-0 z-[70] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('add-dish-modal')">
@@ -39,6 +56,15 @@
             <div>
                 <label class="input-label">菜品描述</label>
                 <textarea name="description" class="input h-20 resize-none" placeholder="这道菜的特色是..."></textarea>
+            </div>
+            <div>
+                <label class="input-label">分类</label>
+                <select name="category" class="input">
+                    <option value="">未分类</option>
+                    {% for cat in ['荤菜','素菜','汤品','主食','甜品','凉菜','小吃'] %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label class="input-label">上传照片</label>
@@ -66,15 +92,21 @@
             {% if dish.image_url %}
             <img src="{{ dish.image_url }}" alt="{{ dish.name }}" class="w-full h-full object-cover">
             {% else %}
-            <div class="w-full h-full flex items-center justify-center">
+            <div class="w-full h-full flex flex-col items-center justify-center gap-0.5">
                 <i class="fas fa-utensils text-stone-300"></i>
+                <span class="text-[8px] text-stone-300 font-bold">缺一张美照</span>
             </div>
             {% endif %}
         </div>
 
         <div class="flex-1 min-w-0 py-0.5">
             <div class="flex items-center justify-between mb-0.5">
-                <h3 class="font-black text-stone-800 truncate">{{ dish.name }}</h3>
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <h3 class="font-black text-stone-800 truncate">{{ dish.name }}</h3>
+                    {% if dish.category %}
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-500 shrink-0">{{ dish.category }}</span>
+                    {% endif %}
+                </div>
                 <div class="flex gap-1">
                     {% if dish.recipe %}
                     {% if dish.recipe.content.cook_time %}
@@ -94,6 +126,14 @@
         </div>
 
         <div class="flex gap-1 items-center">
+            <a
+                href="/order?dish_id={{ dish.id }}"
+                onclick="event.stopPropagation()"
+                class="btn btn-ghost !w-9 !h-9 !min-h-0 !p-0 rounded-xl flex items-center justify-center"
+                title="我要吃"
+            >
+                <i class="fas fa-utensils text-xs text-stone-300 group-hover:text-orange-500 transition-colors"></i>
+            </a>
             <button
                 onclick="event.stopPropagation(); loadRecipe({{ dish.id }})"
                 class="btn btn-ghost btn-icon !w-9 !h-9 !min-h-0 rounded-xl"
@@ -101,7 +141,6 @@
             >
                 <i class="fas fa-book-open text-xs text-stone-300 group-hover:text-orange-400 transition-colors"></i>
             </button>
-            <i class="fas fa-chevron-right text-[10px] text-stone-200 ml-1 group-hover:translate-x-0.5 transition-transform"></i>
         </div>
     </div>
     {% endfor %}
@@ -119,13 +158,6 @@
 <script>
 function openAddDishModal() {
     openModal('add-dish-modal');
-}
-
-function filterDishes(q) {
-    q = q.toLowerCase().trim();
-    document.querySelectorAll('[data-dish-name]').forEach(function(el) {
-        el.style.display = !q || el.getAttribute('data-dish-name').toLowerCase().indexOf(q) !== -1 ? '' : 'none';
-    });
 }
 
 (function() {

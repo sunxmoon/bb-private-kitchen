@@ -2,7 +2,7 @@ from app import crud, schemas
 
 
 def test_create_dish_idempotency(db):
-    user = crud.create_user(db, schemas.UserCreate(name="chef_dup", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="chef_dup", password="testpass666"))
     dish_in = schemas.DishCreate(name="Duplicate Dish", description="Test", created_by=user.id)
 
     # First call
@@ -17,7 +17,7 @@ def test_create_dish_idempotency(db):
     assert len(duplicate_dishes) == 1
 
 def test_add_order_item_idempotency(db):
-    user = crud.create_user(db, schemas.UserCreate(name="customer_dup", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="customer_dup", password="testpass666"))
     dish = crud.create_dish(db, schemas.DishCreate(name="Order Dish", created_by=user.id))
     order = crud.create_order(db, schemas.OrderCreate(created_by=user.id))
 
@@ -40,7 +40,7 @@ def test_add_order_item_idempotency(db):
     assert len(current_order.items) == 1
 
 def test_add_order_item_different_remarks_not_idempotent(db):
-    user = crud.create_user(db, schemas.UserCreate(name="customer_diff", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="customer_diff", password="testpass666"))
     dish = crud.create_dish(db, schemas.DishCreate(name="Order Dish Diff", created_by=user.id))
     order = crud.create_order(db, schemas.OrderCreate(created_by=user.id))
 

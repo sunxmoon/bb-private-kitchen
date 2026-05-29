@@ -41,7 +41,7 @@ def dish(db):
 @pytest.fixture
 def user(db):
     """Create a user for testing."""
-    user_data = schemas.UserCreate(name="testuser", password="666")
+    user_data = schemas.UserCreate(name="testuser", password="testpass666")
     return crud.create_user(db, user_data)
 
 

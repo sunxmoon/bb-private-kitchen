@@ -31,10 +31,10 @@ async def login(
     user = crud.get_user_by_name(db, name)
     if not user:
         crud.create_audit_log(db, 0, f"登录失败(用户不存在): {name}", "users", 0)
-        return RedirectResponse(url="/login?error=user_not_found", status_code=303)
+        return RedirectResponse(url="/login?error=invalid_credentials", status_code=303)
     if not crud.authenticate_user(db, name, password):
         crud.create_audit_log(db, user.id, "登录失败(密码错误)", "users", user.id)
-        return RedirectResponse(url="/login?error=wrong_password", status_code=303)
+        return RedirectResponse(url="/login?error=invalid_credentials", status_code=303)
     crud.create_audit_log(db, user.id, "登录成功", "users", user.id)
     response = RedirectResponse(url="/", status_code=303)
     response.set_cookie(
@@ -46,8 +46,9 @@ async def login(
     return response
 
 
-@router.get("/logout")
-async def logout():
+@router.post("/logout")
+async def logout(request: Request):
+    await csrf_guard(request)
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie(key="user_id", secure=is_production())
     return response

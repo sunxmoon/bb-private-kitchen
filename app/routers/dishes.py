@@ -3,10 +3,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import crud, models, schemas
+from ..ai_client import ai_client
 from ..csrf import get_csrf_token
 from ..database import get_db
 from ..dependencies import delete_old_image, get_common_context, login_required, save_upload_file, templates
-from ..ai_client import ai_client
 
 
 def _parse_recipe_from_form(
@@ -56,16 +56,22 @@ router = APIRouter(tags=["dishes"])
 @router.get("/", response_class=HTMLResponse)
 async def read_root(
     request: Request,
+    q: str = "",
+    cat: str = "",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(login_required),
 ):
     context = get_common_context(request, db, current_user)
-    dishes = crud.get_dishes(db)
+    dishes = crud.search_dishes(db, q, cat) if (q or cat) else crud.get_dishes(db)
+    categories = crud.get_dish_categories(db)
     current_order = crud.get_current_order(db)
     return templates.TemplateResponse(request, "index.html", {
         "dishes": dishes,
+        "categories": categories,
         "current_order": current_order,
         "ai_available": await ai_client.check_available(),
+        "search_query": q,
+        "current_category": cat,
         **context,
     })
 
@@ -90,6 +96,7 @@ async def dish_detail(
 async def create_dish(
     name: str = Form(...),
     description: str = Form(None),
+    category: str = Form(""),
     file: UploadFile = File(None),
     recipe_ingredients: str = Form(None),
     recipe_steps: str = Form(None),
@@ -106,6 +113,7 @@ async def create_dish(
         name=name,
         description=description,
         image_url=image_url,
+        category=category,
         created_by=current_user.id,
     )
     dish = crud.create_dish(db, dish_data)
@@ -154,6 +162,8 @@ async def update_dish(
     dish = crud.get_dish(db, dish_id)
     if not dish:
         return RedirectResponse(url="/?msg=菜品不存在", status_code=404)
+    if dish.created_by != current_user.id and current_user.role != "admin":
+        return RedirectResponse(url="/?msg=只能修改自己创建的菜品", status_code=303)
     dish_data = {"name": name}
     if description is not None:
         dish_data["description"] = description
@@ -180,6 +190,8 @@ async def delete_dish(
     dish = crud.get_dish(db, dish_id)
     if not dish:
         return RedirectResponse(url="/?msg=菜品不存在", status_code=404)
+    if dish.created_by != current_user.id and current_user.role != "admin":
+        return RedirectResponse(url="/?msg=只能下架自己创建的菜品", status_code=303)
     try:
         crud.delete_dish(db, dish_id, current_user.id)
     except ValueError as e:

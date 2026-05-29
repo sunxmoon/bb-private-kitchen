@@ -8,7 +8,7 @@ class UserBase(BaseModel):
     name: str = Field(min_length=1, max_length=50)
 
 class UserCreate(UserBase):
-    password: str = "666"
+    password: str = Field(min_length=8)
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
@@ -27,6 +27,7 @@ class DishBase(BaseModel):
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = None
+    category: Optional[str] = ""
 
 class DishCreate(DishBase):
     created_by: int

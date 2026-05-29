@@ -36,9 +36,9 @@ def test_get_preference_redirects_to_login_when_unauthenticated(client, db):
 
 def test_crud_create_user_duplicate_name_raises(db):
     from sqlalchemy.exc import IntegrityError
-    crud.create_user(db, schemas.UserCreate(name="unique", password="666"))
+    crud.create_user(db, schemas.UserCreate(name="unique", password="testpass666"))
     with pytest.raises(IntegrityError):
-        crud.create_user(db, schemas.UserCreate(name="unique", password="666"))
+        crud.create_user(db, schemas.UserCreate(name="unique", password="testpass666"))
 
 
 def test_crud_update_nonexistent_user(db):
@@ -67,7 +67,7 @@ def test_crud_delete_nonexistent_dish(db):
 
 
 def test_crud_get_last_preference_no_history(db):
-    user = crud.create_user(db, schemas.UserCreate(name="test", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="test", password="testpass666"))
     dish = crud.create_dish(db, schemas.DishCreate(name="Dish", created_by=user.id))
     pref = crud.get_last_item_preference(db, user.id, dish.id)
     assert pref is None

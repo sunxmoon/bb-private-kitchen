@@ -14,7 +14,7 @@ def test_create_user_via_http(client, db):
     token = _csrf(client)
     response = client.post(
         "/create-user",
-        data={"name": "newuser", "password": "123456", "csrf_token": token},
+        data={"name": "newuser", "password": "12345678", "csrf_token": token},
         follow_redirects=False,
     )
     assert response.status_code == 303
@@ -28,7 +28,7 @@ def test_create_user_default_password(client, db):
     token = _csrf(client)
     response = client.post(
         "/create-user",
-        data={"name": "defaultpwd", "csrf_token": token},
+        data={"name": "defaultpwd", "password": "defaultpass666", "csrf_token": token},
         follow_redirects=False,
     )
     assert response.status_code == 303
@@ -38,7 +38,7 @@ def test_create_user_default_password(client, db):
 
 def test_update_user_name(client, db):
     _login(client, db)
-    target = crud.create_user(db, schemas.UserCreate(name="target", password="666"))
+    target = crud.create_user(db, schemas.UserCreate(name="target", password="testpass666"))
     token = _csrf(client)
     response = client.post(
         f"/update-user/{target.id}",
@@ -63,7 +63,7 @@ def test_update_nonexistent_user_returns_404(client, db):
 
 def test_delete_user(client, db):
     _login(client, db)
-    target = crud.create_user(db, schemas.UserCreate(name="todelete", password="666"))
+    target = crud.create_user(db, schemas.UserCreate(name="todelete", password="testpass666"))
     token = _csrf(client)
     response = client.post(
         f"/delete-user/{target.id}",
@@ -75,7 +75,7 @@ def test_delete_user(client, db):
 
 
 def test_delete_self_is_blocked(client, db):
-    user = crud.create_user(db, schemas.UserCreate(name="self", password="666"))
+    user = crud.create_user(db, schemas.UserCreate(name="self", password="testpass666"))
     user.role = "admin"
     db.commit()
     token = "test-csrf-token"
