@@ -8,7 +8,7 @@ from .. import crud, models, schemas
 from ..csrf import get_csrf_token
 from ..database import get_db
 from ..dependencies import delete_old_image, get_common_context, login_required, save_upload_file, templates
-from ..gemini_client import gemini_client
+from ..ai_client import ai_client
 
 
 def _parse_recipe_from_form(
@@ -75,7 +75,7 @@ async def read_root(
     return templates.TemplateResponse(request, "index.html", {
         "dishes": dishes,
         "current_order": current_order,
-        "ai_available": await gemini_client.check_available(),
+        "ai_available": await ai_client.check_available(),
         **context,
     })
 

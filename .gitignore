@@ -44,8 +44,7 @@ static/uploads/*
 .cookie_secret
 
 # Project: AI tools
-host/gemini-bin
-host/gemini-proxy.log
+host/agy-proxy.log
 
 # Project: Claude Code
 .claude/

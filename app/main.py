@@ -70,12 +70,12 @@ async def lifespan(app: FastAPI):
         _migrate_background_to_theme(engine)
         _migrate_add_role_column(engine)
         _migrate_add_indexes(engine)
-        from .gemini_client import gemini_client
-        available = await gemini_client.check_available()
+        from .ai_client import ai_client
+        available = await ai_client.check_available()
         if available:
-            logger.info("Gemini CLI is available")
+            logger.info("AGY CLI is available")
         else:
-            logger.warning("Gemini CLI is NOT available — AI features disabled")
+            logger.warning("AGY CLI is NOT available — AI features disabled")
     yield
 
 

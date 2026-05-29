@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     environment:
-      - GEMINI_HOST_URL=${GEMINI_HOST_URL:-http://host.docker.internal:8765}
+      - AGY_HOST_URL=${AGY_HOST_URL:-http://host.docker.internal:8765}
     volumes:
       - uploads:/app/static/uploads
     extra_hosts:

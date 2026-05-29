@@ -18,9 +18,9 @@
 - 所有人可查看和编辑同一张订单
 
 ### AI 菜谱生成
-- 接入 Google Gemini CLI，基于菜品名称和描述自动生成结构化菜谱
+- 接入 AGY CLI (Antigravity CLI)，基于菜品名称和描述自动生成结构化菜谱
 - 包含食材清单、烹饪步骤、烹饪时长、难度、小贴士
-- 支持 Docker 和本地双模式，Docker 通过 HTTP 代理桥接宿主机 Gemini CLI
+- 支持 Docker 和本地双模式，Docker 通过 HTTP 代理桥接宿主机 AGY CLI
 - AI 不可用时回退为手动录入
 
 ### 用户与权限
@@ -60,7 +60,7 @@
 | CSS | Tailwind CSS（本地构建） |
 | 容器化 | Docker & Docker Compose |
 | 依赖管理 | uv |
-| AI | Google Gemini CLI |
+| AI | AGY CLI (Antigravity CLI) |
 
 ## 搭建步骤
 
@@ -68,7 +68,7 @@
 
 - Python 3.12+
 - PostgreSQL（Docker 方式无需单独安装）
-- [Google Gemini CLI](https://github.com/google-gemini/gemini-cli)（AI 功能可选）
+- [AGY CLI](https://antigravity.google/cli)（AI 功能可选）
 - 宿主机需安装 Docker 和 Docker Compose（Docker 方式）
 
 ### 方式一：Docker Compose（推荐）
@@ -82,10 +82,10 @@ cd bb-private-kitchen
 cp .env.example .env
 # 编辑 .env 修改数据库密码等配置
 
-# 3. 在宿主机启动 Gemini 代理（AI 功能可选）
+# 3. 在宿主机启动 AGY 代理（AI 功能可选）
 cd host && bash setup.sh && cd ..
 # 启动代理服务：
-python3 host/gemini_proxy.py &
+python3 host/agy_proxy.py &
 # 或设为 systemd 服务：参考 setup.sh 输出的服务配置
 
 # 4. 创建外部 Docker 网络（PostgreSQL 数据库网络）
@@ -126,7 +126,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 | `DATABASE_URL` | 数据库连接字符串 | `postgresql://...` |
 | `COOKIE_SECRET` | Cookie 签名密钥 | 可选，自动生成 |
 | `CSRF_SECRET` | CSRF 令牌密钥 | 可选，自动生成 |
-| `GEMINI_HOST_URL` | Gemini 代理地址（Docker 模式） | `http://host.docker.internal:8765` |
+| `AGY_HOST_URL` | AGY 代理地址（Docker 模式） | `http://host.docker.internal:8765` |
 | `ENV` | 运行环境，`production` 时启用 Secure Cookie | — |
 
 ## 项目结构
@@ -141,7 +141,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 │   ├── security.py         # 密码哈希、Cookie 签名
 │   ├── csrf.py             # CSRF 防护
 │   ├── rate_limit.py       # 登录频率限制
-│   ├── gemini_client.py    # Gemini AI 客户端
+│   ├── ai_client.py        # AGY AI 客户端
 │   ├── dependencies.py     # 共享依赖（认证、模板等）
 │   ├── database.py         # 数据库连接
 │   └── routers/            # 路由模块
@@ -153,9 +153,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 │       └── history.py      # 统计看板
 ├── templates/              # Jinja2 模板
 ├── static/                 # 静态资源（CSS、上传文件）
-├── tests/                  # 测试用例（91% 覆盖率）
-├── host/                   # Gemini CLI 代理
-│   ├── gemini_proxy.py     # HTTP 代理服务
+├── tests/                  # 测试用例
+├── host/                   # AGY CLI 代理
+│   ├── agy_proxy.py        # HTTP 代理服务
 │   └── setup.sh            # 宿主机部署脚本
 ├── docs/                   # 设计文档
 ├── Dockerfile

@@ -1,7 +1,7 @@
 [project]
-name = "gemini-proxy"
-version = "0.2.0"
-description = "Asynchronous proxy for Gemini CLI"
+name = "agy-proxy"
+version = "1.0.0"
+description = "HTTP proxy for AGY CLI (Antigravity CLI)"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",

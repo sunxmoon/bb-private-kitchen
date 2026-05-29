@@ -7,7 +7,7 @@ fi
 
 cleanup() {
     echo "Cleaning up..."
-    [ -n "$GEMINI_PROXY_PID" ] && kill "$GEMINI_PROXY_PID" 2>/dev/null
+    [ -n "$AGY_PROXY_PID" ] && kill "$AGY_PROXY_PID" 2>/dev/null
     exit 0
 }
 trap cleanup SIGINT SIGTERM
@@ -18,28 +18,22 @@ mkdir -p static/uploads
 # Install dependencies
 pip install -r requirements.txt
 
-# Create gemini-bin symlink if gemini exists but symlink doesn't
-if [ ! -f host/gemini-bin ] && command -v gemini &>/dev/null; then
-    echo "Creating gemini symlink..."
-    bash host/setup.sh
-fi
-
-# Start gemini host proxy (non-Docker mode)
-if [ -z "$GEMINI_HOST_URL" ] && [ -f host/gemini-bin ]; then
-    echo "Starting gemini proxy on port 8765..."
-    python3 host/gemini_proxy.py &
-    GEMINI_PROXY_PID=$!
+# Start agy host proxy (non-Docker mode)
+if [ -z "$AGY_HOST_URL" ] && command -v agy &>/dev/null; then
+    echo "Starting agy proxy on port 8765..."
+    python3 host/agy_proxy.py &
+    AGY_PROXY_PID=$!
     sleep 1
-    if ! kill -0 "$GEMINI_PROXY_PID" 2>/dev/null; then
-        echo "WARNING: gemini proxy failed to start, AI features will be disabled"
+    if ! kill -0 "$AGY_PROXY_PID" 2>/dev/null; then
+        echo "WARNING: agy proxy failed to start, AI features will be disabled"
     else
-        export GEMINI_HOST_URL="http://127.0.0.1:8765"
-        echo "gemini proxy started (PID: $GEMINI_PROXY_PID)"
+        export AGY_HOST_URL="http://127.0.0.1:8765"
+        echo "agy proxy started (PID: $AGY_PROXY_PID)"
     fi
-elif [ -n "$GEMINI_HOST_URL" ]; then
-    echo "Using external gemini host: $GEMINI_HOST_URL"
+elif [ -n "$AGY_HOST_URL" ]; then
+    echo "Using external agy host: $AGY_HOST_URL"
 else
-    echo "gemini CLI not found — AI features will be disabled"
+    echo "agy CLI not found — AI features will be disabled"
 fi
 
 # Seed the database

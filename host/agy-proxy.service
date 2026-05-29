@@ -1,5 +1,5 @@
 [Unit]
-Description=Gemini CLI Proxy - Bridges Docker to host gemini CLI
+Description=AGY CLI Proxy - Bridges Docker to host agy CLI
 After=network-online.target
 Wants=network-online.target
 
@@ -9,15 +9,15 @@ User=root
 Group=root
 
 WorkingDirectory=/opt/bb-private-kitchen/host
-ExecStart=/root/.local/bin/uv run python3 gemini_proxy.py
+ExecStart=/root/.local/bin/uv run python3 agy_proxy.py
 
 Restart=always
 RestartSec=5
 
 Environment=PYTHONUTF8=1
-Environment=GEMINI_PROXY_HOST=0.0.0.0
-Environment=GEMINI_PROXY_PORT=8765
-Environment=GEMINI_PROXY_TIMEOUT=120
+Environment=AGY_PROXY_HOST=0.0.0.0
+Environment=AGY_PROXY_PORT=8765
+Environment=AGY_PROXY_TIMEOUT=120
 
 [Install]
 WantedBy=multi-user.target

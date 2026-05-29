@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app import crud, schemas
-from app.gemini_client import RECIPE_PROMPT_TEMPLATE
+from app.ai_client import RECIPE_PROMPT_TEMPLATE
 from app.routers.dishes import _parse_recipe_from_form
 
 MOCK_RECIPE_JSON = json.dumps({
@@ -99,8 +99,8 @@ class TestRecipeAPI:
         data = resp.json()
         assert "available" in data
 
-    @patch("app.gemini_client.GeminiClient.check_available", new_callable=AsyncMock)
-    @patch("app.gemini_client.GeminiClient.generate_recipe", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.check_available", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.generate_recipe", new_callable=AsyncMock)
     def test_generate_recipe(self, mock_generate, mock_check, client, db, dish):
         """Test generating a recipe via API."""
         mock_check.return_value = True
@@ -110,8 +110,8 @@ class TestRecipeAPI:
         assert resp.status_code == 200
         assert resp.headers["content-type"].startswith("text/html")
 
-    @patch("app.gemini_client.GeminiClient.check_available", new_callable=AsyncMock)
-    @patch("app.gemini_client.GeminiClient.generate_recipe", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.check_available", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.generate_recipe", new_callable=AsyncMock)
     def test_generate_recipe_already_exists(self, mock_generate, mock_check, client, db, dish):
         """Test generating recipe when one already exists — should update."""
         mock_check.return_value = True
@@ -131,7 +131,7 @@ class TestRecipeAPI:
         assert resp.status_code == 200
         assert resp.headers["content-type"].startswith("text/html")
 
-    @patch("app.gemini_client.GeminiClient.check_available", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.check_available", new_callable=AsyncMock)
     def test_generate_recipe_ai_unavailable(self, mock_check, client, db, dish):
         """Test generating recipe when AI is unavailable."""
         mock_check.return_value = False
@@ -142,8 +142,8 @@ class TestRecipeAPI:
 
 
 class TestRecipeFormEndpoints:
-    @patch("app.gemini_client.GeminiClient.check_available", new_callable=AsyncMock)
-    @patch("app.gemini_client.GeminiClient.generate_recipe", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.check_available", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.generate_recipe", new_callable=AsyncMock)
     def test_generate_recipe_form_for_existing_dish(self, mock_generate, mock_check, client, db, dish):
         """Test generating recipe form for an existing dish — returns recipe form HTML."""
         mock_check.return_value = True
@@ -156,8 +156,8 @@ class TestRecipeFormEndpoints:
         recipe = crud.get_recipe_by_dish(db, dish.id)
         assert recipe is not None
 
-    @patch("app.gemini_client.GeminiClient.check_available", new_callable=AsyncMock)
-    @patch("app.gemini_client.GeminiClient.generate_recipe", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.check_available", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.generate_recipe", new_callable=AsyncMock)
     def test_generate_recipe_form_for_new_dish(self, mock_generate, mock_check, client, db):
         """Test generating recipe form for a new dish (by name+description)."""
         mock_check.return_value = True
@@ -174,7 +174,7 @@ class TestRecipeFormEndpoints:
         assert resp.status_code == 200
         assert "60分钟" in resp.text  # cook_time from mock
 
-    @patch("app.gemini_client.GeminiClient.check_available", new_callable=AsyncMock)
+    @patch("app.ai_client.AIClient.check_available", new_callable=AsyncMock)
     def test_generate_recipe_form_ai_unavailable(self, mock_check, client, db, dish):
         """Test AI unavailable in form."""
         mock_check.return_value = False
@@ -257,7 +257,7 @@ class TestParseRecipeForm:
         assert content["ingredients"][0]["amount"] == ""
 
 
-class TestGeminiClient:
+class TestAIClient:
     def test_prompt_format(self):
         """Test the prompt template renders correctly."""
         prompt = RECIPE_PROMPT_TEMPLATE.format(

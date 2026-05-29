@@ -8,7 +8,7 @@ from .. import crud, models
 from ..csrf import get_csrf_token
 from ..database import get_db
 from ..dependencies import login_required, templates
-from ..gemini_client import gemini_client
+from ..ai_client import ai_client
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ async def recipe_editor(
         "dish": dish,
         "recipe": recipe.content if recipe else None,
         "edit_mode": bool(edit),
-        "ai_available": await gemini_client.check_available(),
+        "ai_available": await ai_client.check_available(),
         "csrf_token": get_csrf_token(request),
     })
 
@@ -71,7 +71,7 @@ async def generate_recipe_modal(
         return HTMLResponse("菜品不存在", status_code=404)
 
     try:
-        recipe_data = await gemini_client.generate_recipe(dish.name, dish.description)
+        recipe_data = await ai_client.generate_recipe(dish.name, dish.description)
         crud.create_or_update_recipe(db, dish_id, recipe_data, current_user.id)
         recipe = crud.get_recipe_by_dish(db, dish_id)
     except Exception as e:
@@ -81,7 +81,7 @@ async def generate_recipe_modal(
             "dish": dish,
             "recipe": recipe.content if recipe else None,
             "edit_mode": True,
-            "ai_available": await gemini_client.check_available(),
+            "ai_available": await ai_client.check_available(),
             "csrf_token": get_csrf_token(request),
             "error": "菜谱生成失败，请稍后重试",
         }, headers={"HX-Trigger": "dishUpdated"})
@@ -90,14 +90,14 @@ async def generate_recipe_modal(
         "dish": dish,
         "recipe": recipe.content if recipe else None,
         "edit_mode": True,
-        "ai_available": await gemini_client.check_available(),
+        "ai_available": await ai_client.check_available(),
         "csrf_token": get_csrf_token(request),
     }, headers={"HX-Trigger": "dishUpdated"})
 
 
 @router.get("/api/ai-status")
 async def ai_status():
-    available = await gemini_client.check_available()
+    available = await ai_client.check_available()
     return {"available": available}
 
 
@@ -114,13 +114,13 @@ async def generate_recipe(
             "dish_id": dish_id, "has_recipe": False,
         })
 
-    if not await gemini_client.check_available():
+    if not await ai_client.check_available():
         return templates.TemplateResponse(request, "_recipe_content.html", {
             "dish_id": dish_id, "has_recipe": False,
         })
 
     try:
-        recipe_data = await gemini_client.generate_recipe(dish.name, dish.description)
+        recipe_data = await ai_client.generate_recipe(dish.name, dish.description)
         crud.create_or_update_recipe(db, dish_id, recipe_data, current_user.id)
         recipe = crud.get_recipe_by_dish(db, dish_id)
         return templates.TemplateResponse(request, "_recipe_content.html", {
@@ -149,7 +149,7 @@ async def generate_recipe_form(
             "ai_available": False,
         })
 
-    if not await gemini_client.check_available():
+    if not await ai_client.check_available():
         return templates.TemplateResponse(request, "_recipe_form_fields.html", {
             "recipe": None,
             "ai_generate_url": f"/generate-recipe-form/{dish_id}",
@@ -157,7 +157,7 @@ async def generate_recipe_form(
         })
 
     try:
-        recipe_data = await gemini_client.generate_recipe(dish.name, dish.description)
+        recipe_data = await ai_client.generate_recipe(dish.name, dish.description)
         crud.create_or_update_recipe(db, dish_id, recipe_data, current_user.id)
         recipe = crud.get_recipe_by_dish(db, dish_id)
     except Exception as e:
@@ -185,7 +185,7 @@ async def generate_recipe_form_new(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(login_required),
 ):
-    if not await gemini_client.check_available():
+    if not await ai_client.check_available():
         return templates.TemplateResponse(request, "_recipe_form_fields.html", {
             "recipe": None,
             "ai_generate_url": "/generate-recipe-form",
@@ -193,7 +193,7 @@ async def generate_recipe_form_new(
         })
 
     try:
-        recipe_data = await gemini_client.generate_recipe(name, description)
+        recipe_data = await ai_client.generate_recipe(name, description)
     except Exception as e:
         logger.error("Recipe form generation failed for new dish %s: %s", name, e)
         return templates.TemplateResponse(request, "_recipe_form_fields.html", {
