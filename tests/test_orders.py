@@ -1,20 +1,5 @@
 from app import crud, schemas
-
-
-def _login(client, db):
-    crud.create_user(db, schemas.UserCreate(name="testuser", password="666"))
-    user = crud.get_user_by_name(db, "testuser")
-    user.role = "admin"
-    db.commit()
-    token = "test-csrf-token"
-    client.cookies.set("csrf_token", token)
-    client.post("/login", data={"name": "testuser", "password": "666", "csrf_token": token})
-
-
-def _csrf(client):
-    token = "test-csrf-token"
-    client.cookies.set("csrf_token", token)
-    return token
+from conftest import _login_admin as _login, _csrf
 
 
 def test_order_page_creates_order_if_none(client, db):

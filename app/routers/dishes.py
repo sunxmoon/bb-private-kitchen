@@ -1,5 +1,3 @@
-import ast
-
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -35,15 +33,7 @@ def _parse_recipe_from_form(
 
     tips = []
     if recipe_tips:
-        # Handle case where recipe_tips might be a string representation of a list "['a', 'b']"
-        val = recipe_tips.strip()
-        if val.startswith("['") and val.endswith("']"):
-            try:
-                tips = ast.literal_eval(val)
-            except Exception:
-                tips = [t.strip() for t in val.split("\n") if t.strip()]
-        else:
-            tips = [t.strip() for t in val.split("\n") if t.strip()]
+        tips = [t.strip() for t in recipe_tips.strip().split("\n") if t.strip()]
 
     content = {
         "ingredients": ingredients,

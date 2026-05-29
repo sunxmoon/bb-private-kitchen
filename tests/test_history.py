@@ -1,17 +1,5 @@
 from app import crud, schemas
-
-
-def _login(client, db):
-    crud.create_user(db, schemas.UserCreate(name="testuser", password="666"))
-    token = "test-csrf-token"
-    client.cookies.set("csrf_token", token)
-    client.post("/login", data={"name": "testuser", "password": "666", "csrf_token": token})
-
-
-def _csrf(client):
-    token = "test-csrf-token"
-    client.cookies.set("csrf_token", token)
-    return token
+from conftest import _login, _csrf
 
 
 def test_history_page_empty(client, db):

@@ -1,21 +1,6 @@
 from app import crud, schemas
 from app.security import sign_cookie_value
-
-
-def _login(client, db):
-    crud.create_user(db, schemas.UserCreate(name="admin", password="666"))
-    user = crud.get_user_by_name(db, "admin")
-    user.role = "admin"
-    db.commit()
-    token = "test-csrf-token"
-    client.cookies.set("csrf_token", token)
-    client.post("/login", data={"name": "admin", "password": "666", "csrf_token": token})
-
-
-def _csrf(client):
-    token = "test-csrf-token"
-    client.cookies.set("csrf_token", token)
-    return token
+from conftest import _login_admin as _login, _csrf
 
 
 def test_users_page(client, db):

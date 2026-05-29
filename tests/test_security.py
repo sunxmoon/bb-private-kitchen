@@ -1,12 +1,7 @@
 import pytest
 
 from app import crud, schemas
-
-
-def _csrf(client):
-    token = "test-csrf-token"
-    client.cookies.set("csrf_token", token)
-    return token
+from conftest import _csrf
 
 
 def test_root_redirects_to_login_when_unauthenticated(client, db):

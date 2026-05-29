@@ -6,6 +6,7 @@ import pytest
 from app import crud, schemas
 from app.ai_client import RECIPE_PROMPT_TEMPLATE
 from app.routers.dishes import _parse_recipe_from_form
+from conftest import _login
 
 MOCK_RECIPE_JSON = json.dumps({
     "ingredients": [
@@ -82,14 +83,6 @@ class TestRecipeModel:
         db.delete(dish)
         db.commit()
         assert crud.get_recipe_by_dish(db, dish.id) is None
-
-
-def _login(client, db):
-    from app import crud, schemas
-    crud.create_user(db, schemas.UserCreate(name="testuser", password="666"))
-    token = "test-csrf-token"
-    client.cookies.set("csrf_token", token)
-    client.post("/login", data={"name": "testuser", "password": "666", "csrf_token": token})
 
 
 class TestRecipeAPI:

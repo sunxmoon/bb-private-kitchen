@@ -104,7 +104,7 @@ def get_dishes(db: Session):
     return db.query(models.Dish).options(selectinload(models.Dish.recipe)).filter(models.Dish.is_active).all()
 
 def get_dish(db: Session, dish_id: int):
-    return db.query(models.Dish).filter(models.Dish.id == dish_id).first()
+    return db.query(models.Dish).options(selectinload(models.Dish.recipe)).filter(models.Dish.id == dish_id).first()
 
 def create_dish(db: Session, dish: schemas.DishCreate):
     # Idempotency check: Don't create same dish twice in 10 seconds
@@ -171,17 +171,21 @@ def get_current_order(db: Session):
     ).filter(models.Order.status == "open").order_by(models.Order.created_at.desc()).first()
 
 def get_or_create_current_order(db: Session, user_id: int):
-        order = get_current_order(db)
-        if not order:
-            order = models.Order(status="open", created_by=user_id)
-            db.add(order)
+    order = get_current_order(db)
+    if not order:
+        order = models.Order(status="open", created_by=user_id)
+        db.add(order)
+        try:
             db.flush()
-            create_audit_log(
-                db, user_id, "创建订单", "orders", order.id, None, {"status": "open", "created_by": user_id}, commit=False,
-            )
-            db.commit()
-            db.refresh(order)
-        return order
+        except Exception:
+            db.rollback()
+            return get_current_order(db)
+        create_audit_log(
+            db, user_id, "创建订单", "orders", order.id, None, {"status": "open", "created_by": user_id}, commit=False,
+        )
+        db.commit()
+        db.refresh(order)
+    return order
 
 def create_order(db: Session, order: schemas.OrderCreate):
     db_order = models.Order(**order.model_dump())
@@ -285,6 +289,7 @@ def complete_order(db: Session, order_id: int, user_id: int):
     new_values = {c.name: getattr(db_order, c.name) for c in db_order.__table__.columns}
     create_audit_log(db, user_id, "完成了订单", "orders", order_id, old_values, new_values, commit=False)
     db.commit()
+    db.refresh(db_order)
     return db_order
 
 PAGE_SIZE = 20

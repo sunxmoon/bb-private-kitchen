@@ -15,6 +15,7 @@ templates = Jinja2Templates(directory="templates")
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 SUPPORTED_MSG = "支持的格式: JPG, JPEG, PNG, GIF, WebP"
+MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
 
 
 async def get_current_user(db: Session = Depends(get_db), user_id: Optional[str] = Cookie(None)):
@@ -60,9 +61,18 @@ async def save_upload_file(file: UploadFile, destination_dir: str) -> str:
     os.makedirs(destination_dir, exist_ok=True)
     filename = f"{uuid.uuid4()}{ext}"
     filepath = os.path.join(destination_dir, filename)
-    async with aiofiles.open(filepath, "wb") as out_file:
-        while content := await file.read(1024 * 1024):
-            await out_file.write(content)
+    total_size = 0
+    try:
+        async with aiofiles.open(filepath, "wb") as out_file:
+            while content := await file.read(1024 * 1024):
+                total_size += len(content)
+                if total_size > MAX_UPLOAD_SIZE:
+                    raise HTTPException(status_code=413, detail=f"文件大小超过限制（最大 {MAX_UPLOAD_SIZE // 1024 // 1024}MB）")
+                await out_file.write(content)
+    except HTTPException:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        raise
     return f"/{filepath}"
 
 

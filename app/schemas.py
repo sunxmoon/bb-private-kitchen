@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,7 +14,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
     theme_color: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[Literal["admin", "user"]] = None
 
 class User(UserBase):
     model_config = ConfigDict(from_attributes=True)

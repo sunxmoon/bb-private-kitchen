@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app import crud, schemas
 from app.database import Base, get_db
 from app.main import app
 
@@ -45,3 +46,24 @@ def client(db):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+def _login(client, db):
+    crud.create_user(db, schemas.UserCreate(name="testuser", password="666"))
+    token = _csrf(client)
+    client.post("/login", data={"name": "testuser", "password": "666", "csrf_token": token})
+
+
+def _login_admin(client, db):
+    crud.create_user(db, schemas.UserCreate(name="testuser", password="666"))
+    user = crud.get_user_by_name(db, "testuser")
+    user.role = "admin"
+    db.commit()
+    token = _csrf(client)
+    client.post("/login", data={"name": "testuser", "password": "666", "csrf_token": token})
+
+
+def _csrf(client):
+    token = "test-csrf-token"
+    client.cookies.set("csrf_token", token)
+    return token

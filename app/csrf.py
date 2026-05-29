@@ -1,10 +1,8 @@
 import hmac
-import os
 from secrets import token_urlsafe
 
 from fastapi import HTTPException, Request
 
-CSRF_SECRET = os.getenv("CSRF_SECRET", token_urlsafe(32))
 CSRF_COOKIE_NAME = "csrf_token"
 CSRF_FORM_NAME = "csrf_token"
 

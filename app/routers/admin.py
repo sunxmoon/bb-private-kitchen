@@ -20,14 +20,13 @@ async def admin_page(
 ):
     page = max(1, page)
     context = get_common_context(request, db, current_user)
-    users = crud.get_users(db)
     orders = crud.get_order_history(db, page=page)
     total_orders = crud.get_order_history_count(db)
     total_pages = max(1, (total_orders + crud.PAGE_SIZE - 1) // crud.PAGE_SIZE)
     logs = crud.get_audit_logs(db)
 
     return templates.TemplateResponse(request, "admin.html", {
-        "users": users,
+        "users": context["users"],
         "orders": orders,
         "logs": logs,
         "page": page,

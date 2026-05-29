@@ -1,9 +1,5 @@
 from app import crud, schemas
-
-
-def _csrf(client):
-    client.cookies.set("csrf_token", "test-csrf-token")
-    return "test-csrf-token"
+from conftest import _csrf
 
 
 def test_get_preference(client, db):
