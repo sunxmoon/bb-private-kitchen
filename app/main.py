@@ -146,7 +146,7 @@ async def set_csrf_cookie(request: Request, call_next):
         response.set_cookie(
             key=CSRF_COOKIE_NAME, value=token,
             httponly=True, samesite="lax",
-            max_age=86400, secure=is_production(),
+            max_age=86400, secure=request.url.scheme == "https",
         )
     return response
 

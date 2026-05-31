@@ -7,7 +7,7 @@ from ..csrf import csrf_guard, get_csrf_token
 from ..database import get_db
 from ..dependencies import templates
 from ..rate_limit import login_rate_limit
-from ..security import is_production, sign_cookie_value
+from ..security import sign_cookie_value
 
 router = APIRouter(tags=["auth"])
 
@@ -37,11 +37,12 @@ async def login(
         return RedirectResponse(url="/login?error=invalid_credentials", status_code=303)
     crud.create_audit_log(db, user.id, "登录成功", "users", user.id)
     response = RedirectResponse(url="/", status_code=303)
+    secure = request.url.scheme == "https"
     response.set_cookie(
         key="user_id",
         value=sign_cookie_value(str(user.id)),
         httponly=True, samesite="lax", max_age=86400,
-        secure=is_production(),
+        secure=secure,
     )
     return response
 
@@ -50,5 +51,5 @@ async def login(
 async def logout(request: Request):
     await csrf_guard(request)
     response = RedirectResponse(url="/login", status_code=303)
-    response.delete_cookie(key="user_id", secure=is_production())
+    response.delete_cookie(key="user_id", secure=request.url.scheme == "https")
     return response
