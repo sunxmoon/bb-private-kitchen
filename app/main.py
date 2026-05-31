@@ -186,8 +186,10 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    import sys
     import traceback
-    traceback.print_exc()
+    traceback.print_exception(type(exc), exc, exc.__traceback__, file=sys.stderr)
+    print(f"=== GLOBAL ERROR: {exc} ===", file=sys.stderr, flush=True)
     logger.error(f"Global error: {exc}", exc_info=True)
     detail = "系统出现意外错误，请稍后再试。" if is_production() else str(exc)
     return templates.TemplateResponse(request, "error.html", {"detail": detail}, status_code=500)
