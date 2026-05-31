@@ -46,11 +46,12 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv pip install --system --no-cache -r pyproject.toml
 
-# Copy application code, migrations, and compiled assets from builder
+# Copy application code, migrations, templates, and compiled assets from builder
 COPY --from=builder /app/app /app/app
 COPY --from=builder /app/alembic /app/alembic
 COPY --from=builder /app/alembic.ini /app/alembic.ini
 COPY --from=builder /app/static /app/static
+COPY --from=builder /app/templates /app/templates
 
 # Create non-root user
 RUN mkdir -p static/uploads && \
