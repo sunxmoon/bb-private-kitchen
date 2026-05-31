@@ -1,5 +1,7 @@
+from conftest import _csrf
+from conftest import _login_admin as _login
+
 from app import crud, schemas
-from conftest import _login_admin as _login, _csrf
 
 
 def test_order_page_creates_order_if_none(client, db):
@@ -122,7 +124,7 @@ def test_update_nonexistent_item_returns_404(client, db):
         data={"csrf_token": token},
         follow_redirects=False,
     )
-    assert response.status_code == 404
+    assert response.status_code == 303
 
 
 def test_complete_nonexistent_item_returns_404(client, db):

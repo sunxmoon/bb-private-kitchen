@@ -9,7 +9,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), unique=True, nullable=False)
-    password = Column(String(255), nullable=False, default="666")
+    password = Column(String(255), nullable=False)
     theme_color = Column(String(20), default="#f97316")
     role = Column(String(20), default="user", nullable=False)
     created_at = Column(DateTime, server_default=func.now())
@@ -74,6 +74,7 @@ class OrderItem(Base):
     location = Column(Text)
     ingredients = Column(Text)
     remarks = Column(Text)
+    rating = Column(Integer)
     status = Column(String(50), default="pending", index=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

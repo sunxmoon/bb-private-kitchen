@@ -7,48 +7,7 @@ from ..ai_client import ai_client
 from ..csrf import get_csrf_token
 from ..database import get_db
 from ..dependencies import delete_old_image, get_common_context, login_required, save_upload_file, templates
-
-
-def _parse_recipe_from_form(
-    recipe_ingredients: str | None,
-    recipe_steps: str | None,
-    recipe_cook_time: str | None,
-    recipe_difficulty: str | None,
-    recipe_tips: str | None,
-) -> dict | None:
-    ingredients = []
-    if recipe_ingredients:
-        for line in recipe_ingredients.strip().split("\n"):
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split(None, 1)
-            if len(parts) == 2:
-                ingredients.append({"amount": parts[0], "name": parts[1]})
-            else:
-                ingredients.append({"amount": "", "name": parts[0]})
-    steps = [s.strip() for s in recipe_steps.strip().split("\n") if s.strip()] if recipe_steps else []
-    if not ingredients and not steps:
-        return None
-
-    tips = []
-    if recipe_tips:
-        tips = [t.strip() for t in recipe_tips.strip().split("\n") if t.strip()]
-
-    content = {
-        "ingredients": ingredients,
-        "steps": steps,
-        "cook_time": recipe_cook_time.strip() if recipe_cook_time else "",
-        "difficulty": recipe_difficulty.strip() if recipe_difficulty else "",
-        "tips": tips if tips else "",
-    }
-    return content
-
-
-def _save_recipe_form(db, dish_id, recipe_ingredients, recipe_steps, recipe_cook_time, recipe_difficulty, recipe_tips, user_id):
-    content = _parse_recipe_from_form(recipe_ingredients, recipe_steps, recipe_cook_time, recipe_difficulty, recipe_tips)
-    if content:
-        crud.create_or_update_recipe(db, dish_id, content, user_id)
+from ..recipe_utils import save_recipe_form
 
 router = APIRouter(tags=["dishes"])
 
@@ -85,7 +44,7 @@ async def dish_detail(
 ):
     dish = crud.get_dish(db, dish_id)
     if not dish:
-        return HTMLResponse("菜品不存在", status_code=404)
+        return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
     return templates.TemplateResponse(request, "dish_detail_modal.html", {
         "dish": dish,
         "csrf_token": get_csrf_token(request),
@@ -120,7 +79,7 @@ async def create_dish(
     if dish.image_url and dish.image_url != image_url and image_url:
         delete_old_image(image_url)
     if recipe_ingredients or recipe_steps:
-        _save_recipe_form(
+        save_recipe_form(
             db, dish.id, recipe_ingredients, recipe_steps,
             recipe_cook_time, recipe_difficulty, recipe_tips, current_user.id,
         )
@@ -161,7 +120,7 @@ async def update_dish(
 ):
     dish = crud.get_dish(db, dish_id)
     if not dish:
-        return RedirectResponse(url="/?msg=菜品不存在", status_code=404)
+        return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
     if dish.created_by != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/?msg=只能修改自己创建的菜品", status_code=303)
     dish_data = {"name": name}
@@ -174,7 +133,7 @@ async def update_dish(
         dish_data["image_url"] = image_url
     crud.update_dish(db, dish_id, dish_data, current_user.id)
     if recipe_ingredients or recipe_steps:
-        _save_recipe_form(
+        save_recipe_form(
             db, dish_id, recipe_ingredients, recipe_steps,
             recipe_cook_time, recipe_difficulty, recipe_tips, current_user.id,
         )
@@ -189,7 +148,7 @@ async def delete_dish(
 ):
     dish = crud.get_dish(db, dish_id)
     if not dish:
-        return RedirectResponse(url="/?msg=菜品不存在", status_code=404)
+        return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
     if dish.created_by != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/?msg=只能下架自己创建的菜品", status_code=303)
     try:

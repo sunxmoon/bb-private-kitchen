@@ -1,5 +1,8 @@
+import re
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import crud, models, schemas
@@ -87,12 +90,11 @@ async def update_item(
 ):
     item = crud.get_order_item(db, item_id)
     if not item:
-        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=404)
+        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=303)
     if item.user_id != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/my-orders?msg=只能修改自己的点单", status_code=303)
     VALID_STATUSES = {"pending", "completed", "delayed"}
     query_status = request.query_params.get("status")
-    query_msg = request.query_params.get("msg", "已更新")
     item_data = {
         "taste": taste,
         "preferred_time": preferred_time,
@@ -104,7 +106,7 @@ async def update_item(
     if final_status and final_status in VALID_STATUSES:
         item_data["status"] = final_status
     crud.update_order_item(db, item_id, item_data, current_user.id)
-    return RedirectResponse(url=f"/my-orders?msg={query_msg}", status_code=303)
+    return RedirectResponse(url="/my-orders?msg=已更新", status_code=303)
 
 
 @router.post("/complete-item/{item_id}")
@@ -179,3 +181,92 @@ async def complete_order(
         return RedirectResponse(url=f"/my-orders?msg=还有 {len(pending)} 道菜未完成", status_code=303)
     crud.complete_order(db, order.id, current_user.id)
     return RedirectResponse(url="/my-orders?msg=订单已完成！", status_code=303)
+
+
+def _parse_quantity(text: str):
+    """Extract numeric value and unit from ingredient quantity string."""
+    match = re.match(r'([\d.]+)\s*(\S+)', text.strip())
+    if match:
+        try:
+            return float(match.group(1)), match.group(2)
+        except (ValueError, TypeError):
+            return None, None
+    return None, None
+
+
+@router.post("/rate-item/{item_id}")
+async def rate_item(
+    item_id: int,
+    request: Request,
+    rating: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(login_required),
+):
+    if rating < 1 or rating > 5:
+        return RedirectResponse(url="/my-orders?msg=评分无效", status_code=303)
+    item = crud.get_order_item(db, item_id)
+    if not item:
+        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=404)
+    if item.user_id != current_user.id and current_user.role != "admin":
+        return RedirectResponse(url="/my-orders?msg=只能评价自己的点单", status_code=303)
+    result = crud.rate_dish(db, item_id, rating, current_user.id)
+    if not result:
+        return RedirectResponse(url="/my-orders?msg=评分失败", status_code=303)
+    return RedirectResponse(url="/my-orders?msg=已评分", status_code=303)
+
+
+@router.get("/shopping-list", response_class=HTMLResponse)
+async def shopping_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(login_required),
+):
+    context = get_common_context(request, db, current_user)
+    order = crud.get_current_order(db)
+
+    aggregated = defaultdict(lambda: {"qty": 0, "unit": "", "dishes": set()})
+
+    if order:
+        for item in order.items:
+            if item.status == "completed":
+                continue
+            if not item.dish or not item.dish.recipe:
+                continue
+            recipe_content = item.dish.recipe.content
+            if not isinstance(recipe_content, dict):
+                continue
+            for ing in recipe_content.get("ingredients", []):
+                name = ing.get("name", "").strip()
+                amount_str = ing.get("amount", "")
+                if not name:
+                    continue
+                qty, unit = _parse_quantity(amount_str)
+                aggregated[name]["dishes"].add(item.dish.name)
+                if qty is not None:
+                    if unit and aggregated[name]["unit"] and aggregated[name]["unit"] != unit:
+                        aggregated[name]["qty"] = None
+                        aggregated[name]["unit"] = f"{aggregated[name]['unit']}+{unit}"
+                    else:
+                        if aggregated[name]["qty"] is not None:
+                            aggregated[name]["qty"] += qty
+                        aggregated[name]["unit"] = unit
+
+    shopping_items = []
+    for name, data in sorted(aggregated.items()):
+        qty = data["qty"]
+        unit = data["unit"]
+        if qty is not None:
+            qty_str = f"{qty:g}{unit}" if unit else str(qty)
+        else:
+            qty_str = unit if unit else "—"
+        shopping_items.append({
+            "name": name,
+            "qty": qty_str,
+            "dishes": sorted(data["dishes"]),
+        })
+
+    return templates.TemplateResponse(request, "shopping_list.html", {
+        "shopping_items": shopping_items,
+        "order_id": order.id if order else None,
+        **context,
+    })

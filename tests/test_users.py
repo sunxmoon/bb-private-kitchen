@@ -1,6 +1,8 @@
+from conftest import _csrf
+from conftest import _login_admin as _login
+
 from app import crud, schemas
 from app.security import sign_cookie_value
-from conftest import _login_admin as _login, _csrf
 
 
 def test_users_page(client, db):

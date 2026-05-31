@@ -53,8 +53,8 @@ def authenticate_user(db: Session, name: str, password: str):
         return None
     return user
 
-def get_users(db: Session):
-    return db.query(models.User).all()
+def get_users(db: Session, limit: int = 100):
+    return db.query(models.User).limit(limit).all()
 
 def create_user(db: Session, user: schemas.UserCreate, actor_id: int = 0):
     hashed_password = security.get_password_hash(user.password)
@@ -83,6 +83,11 @@ def update_user(db: Session, user_id: int, user_data: Dict[str, Any], actor_id: 
             setattr(db_user, key, value)
 
     new_values = {c.name: getattr(db_user, c.name) for c in db_user.__table__.columns}
+
+    # Strip sensitive fields from audit log explicitly (defense in depth)
+    for values in (old_values, new_values):
+        values.pop("password", None)
+
     create_audit_log(db, actor_id, "更新用户", "users", user_id, old_values, new_values, commit=False)
     db.commit()
     db.refresh(db_user)
@@ -94,6 +99,7 @@ def delete_user(db: Session, user_id: int, actor_id: int):
         return None
 
     old_values = {c.name: getattr(db_user, c.name) for c in db_user.__table__.columns}
+    old_values.pop("password", None)
     db.delete(db_user)
     create_audit_log(db, actor_id, "删除用户", "users", user_id, old_values, None, commit=False)
     db.commit()
@@ -354,6 +360,35 @@ def get_last_item_preference(db: Session, user_id: int, dish_id: int):
         .filter(models.OrderItem.dish_id == dish_id)\
         .order_by(models.OrderItem.created_at.desc())\
         .first()
+
+
+def get_dish_rating(db: Session, dish_id: int):
+    result = db.query(func.avg(models.OrderItem.rating), func.count(models.OrderItem.rating))\
+        .filter(models.OrderItem.dish_id == dish_id, models.OrderItem.rating.isnot(None))\
+        .first()
+    if result and result[1] > 0:
+        return {"avg": round(result[0], 1), "count": result[1]}
+    return None
+
+
+def rate_dish(db: Session, item_id: int, rating: int, user_id: int):
+    db_item = db.query(models.OrderItem).filter(models.OrderItem.id == item_id).first()
+    if not db_item:
+        return None
+    if db_item.user_id != user_id:
+        return None
+    if rating < 1 or rating > 5:
+        return None
+    old_rating = db_item.rating
+    db_item.rating = rating
+    dish_name = db_item.dish.name if db_item.dish else "未知菜品"
+    create_audit_log(
+        db, user_id, f"给《{dish_name}》评分{rating}星", "order_items", item_id,
+        {"rating": old_rating}, {"rating": rating}, commit=False,
+    )
+    db.commit()
+    db.refresh(db_item)
+    return db_item
 
 # Recipe CRUD
 def get_recipe_by_dish(db: Session, dish_id: int):

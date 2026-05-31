@@ -1,5 +1,6 @@
+from conftest import _login
+
 from app import crud, schemas
-from conftest import _login, _csrf
 
 
 def test_history_page_empty(client, db):

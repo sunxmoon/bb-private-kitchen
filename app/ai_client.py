@@ -1,11 +1,12 @@
 import asyncio
 import json
 import logging
-import os
 import re
 import subprocess
 
 import httpx
+
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ _CACHE_TTL = 300  # 5 minutes
 
 class AIClient:
     def __init__(self):
-        self.host_url = os.getenv("AGY_HOST_URL")
+        self.host_url = settings.AGY_HOST_URL or None
         self._available = None
         self._available_ts = 0.0
 

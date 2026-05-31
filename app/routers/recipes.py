@@ -1,7 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import crud, models
@@ -9,6 +9,7 @@ from ..ai_client import ai_client
 from ..csrf import get_csrf_token
 from ..database import get_db
 from ..dependencies import login_required, templates
+from ..recipe_utils import parse_recipe_from_form
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ async def recipe_editor(
 ):
     dish = crud.get_dish(db, dish_id)
     if not dish:
-        return HTMLResponse("菜品不存在", status_code=404)
+        return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
     recipe = crud.get_recipe_by_dish(db, dish_id)
     return templates.TemplateResponse(request, "recipe_modal.html", {
         "dish": dish,
@@ -48,8 +49,7 @@ async def update_recipe(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(login_required),
 ):
-    from .dishes import _parse_recipe_from_form
-    content = _parse_recipe_from_form(recipe_ingredients, recipe_steps, recipe_cook_time, recipe_difficulty, recipe_tips)
+    content = parse_recipe_from_form(recipe_ingredients, recipe_steps, recipe_cook_time, recipe_difficulty, recipe_tips)
     if content:
         crud.create_or_update_recipe(db, dish_id, content, current_user.id)
 
@@ -68,7 +68,7 @@ async def generate_recipe_modal(
 ):
     dish = crud.get_dish(db, dish_id)
     if not dish:
-        return HTMLResponse("菜品不存在", status_code=404)
+        return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
 
     try:
         recipe_data = await ai_client.generate_recipe(dish.name, dish.description)

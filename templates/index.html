@@ -7,7 +7,7 @@
         <p class="text-xs text-stone-400 mt-0.5">今天想吃什么？</p>
     </div>
     <div class="flex items-center gap-2">
-        <button onclick="openAddDishModal()" class="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105" style="background:var(--brand-bg);color:var(--brand)">
+        <button onclick="openAddDishModal()" class="w-11 h-11 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95" style="background:var(--brand-bg);color:var(--brand)">
             <i class="fas fa-plus"></i>
         </button>
         <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-500">{{ dishes|length }} 道</span>
@@ -22,9 +22,17 @@
                hx-get="/"
                hx-trigger="input changed delay:300ms, search"
                hx-target="#dish-list-container"
-               hx-swap="outerHTML"
-               hx-include="[name='q']">
+               hx-swap="outerHTML show:none"
+               hx-include="[name='q']"
+               hx-history="false">
     </div>
+</div>
+
+<!-- Search skeleton loading -->
+<div id="search-skeleton" class="hidden grid grid-cols-1 gap-3">
+    <div class="skeleton-card flex items-center gap-4 p-3"><div class="skeleton skeleton-avatar shrink-0"></div><div class="flex-1"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div></div>
+    <div class="skeleton-card flex items-center gap-4 p-3"><div class="skeleton skeleton-avatar shrink-0"></div><div class="flex-1"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div></div>
+    <div class="skeleton-card flex items-center gap-4 p-3"><div class="skeleton skeleton-avatar shrink-0"></div><div class="flex-1"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div></div>
 </div>
 
 {% if categories %}
@@ -68,8 +76,46 @@
             </div>
             <div>
                 <label class="input-label">上传照片</label>
-                <input type="file" name="file" accept="image/*" class="text-sm text-stone-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-600 cursor-pointer">
+                <div class="flex items-start gap-3">
+                    <input type="file" name="file" id="dish-image-input" accept="image/*" class="text-sm text-stone-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-600 cursor-pointer">
+                    <img id="dish-image-preview" class="hidden w-14 h-14 rounded-xl object-cover border border-stone-200 shrink-0" alt="预览">
+                </div>
             </div>
+            <details class="group">
+                <summary class="flex items-center gap-2 text-xs font-bold text-stone-400 cursor-pointer py-1 select-none">
+                    <i class="fas fa-chevron-right text-[9px] transition-transform group-open:rotate-90"></i>
+                    添加菜谱 <span class="font-normal text-stone-300">（可选）</span>
+                </summary>
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <label class="input-label">食材（每行一个，格式：用量 名称）</label>
+                        <textarea name="recipe_ingredients" class="input h-24 resize-none font-mono text-xs" placeholder="500g 五花肉&#10;30g 冰糖&#10;3片 姜"></textarea>
+                    </div>
+                    <div>
+                        <label class="input-label">步骤（每行一步）</label>
+                        <textarea name="recipe_steps" class="input h-24 resize-none" placeholder="五花肉切块，冷水下锅焯水3分钟&#10;锅中放少许油，加入冰糖小火炒出糖色&#10;..."></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="input-label">烹饪时间</label>
+                            <input type="text" name="recipe_cook_time" class="input" placeholder="60分钟">
+                        </div>
+                        <div>
+                            <label class="input-label">难度</label>
+                            <select name="recipe_difficulty" class="input">
+                                <option value="">—</option>
+                                <option value="简单">简单</option>
+                                <option value="中等">中等</option>
+                                <option value="困难">困难</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">小提示</label>
+                        <textarea name="recipe_tips" class="input h-16 resize-none" placeholder="每行一个小提示"></textarea>
+                    </div>
+                </div>
+            </details>
             <button type="submit" class="btn btn-primary w-full mt-2">确认收录</button>
         </form>
     </div>
@@ -159,6 +205,33 @@
 function openAddDishModal() {
     openModal('add-dish-modal');
 }
+
+// Search skeleton toggle
+document.getElementById('dish-search').addEventListener('htmx:beforeRequest', function() {
+    document.getElementById('search-skeleton').classList.remove('hidden');
+});
+document.getElementById('dish-search').addEventListener('htmx:afterSwap', function() {
+    document.getElementById('search-skeleton').classList.add('hidden');
+});
+document.getElementById('dish-search').addEventListener('htmx:sendError', function() {
+    document.getElementById('search-skeleton').classList.add('hidden');
+});
+
+// Image upload preview
+document.getElementById('dish-image-input').addEventListener('change', function() {
+    var preview = document.getElementById('dish-image-preview');
+    if (this.files && this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(this.files[0]);
+    } else {
+        preview.classList.add('hidden');
+        preview.src = '';
+    }
+});
 
 (function() {
     var p = new URLSearchParams(window.location.search);

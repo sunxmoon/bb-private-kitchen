@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center mb-6">
+    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm" style="background:var(--brand-bg);color:var(--brand)">
+        <i class="fas fa-shopping-basket text-2xl"></i>
+    </div>
+    <h2 class="text-2xl font-black text-stone-800">购物清单</h2>
+    <p class="text-xs text-stone-400 mt-1">{% if order_id %}订单 #{{ order_id }} 所需食材{% else %}当前无待处理订单{% endif %}</p>
+</div>
+
+{% if shopping_items %}
+<div class="card p-4 mb-4">
+    <div class="flex items-center gap-2 mb-3">
+        <i class="fas fa-list-check text-xs" style="color:var(--brand)"></i>
+        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">食材汇总</span>
+        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="color:var(--brand);background:var(--brand-bg)">{{ shopping_items|length }} 种</span>
+    </div>
+    <div class="space-y-2">
+        {% for item in shopping_items %}
+        <div class="flex items-center justify-between py-2 border-b border-stone-50 last:border-0">
+            <div class="flex-1 min-w-0">
+                <p class="font-bold text-sm text-stone-800">{{ item.name }}</p>
+                <p class="text-[10px] text-stone-400">用于：{{ item.dishes | join('、') }}</p>
+            </div>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 ml-3" style="color:var(--brand);background:var(--brand-bg)">{{ item.qty }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="card p-16 flex flex-col items-center justify-center text-center">
+    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-bg);color:var(--brand)">
+        <i class="fas fa-shopping-basket text-2xl"></i>
+    </div>
+    <p class="font-bold text-stone-600 text-lg mb-1">没有待采购的食材</p>
+    <p class="text-sm text-stone-400">{% if order_id %}所有菜品都已完成{% else %}当前无订单{% endif %}</p>
+</div>
+{% endif %}
+
+<a href="/my-orders" class="btn btn-ghost w-full justify-center">
+    <i class="fas fa-arrow-left mr-2"></i> 返回订单
+</a>
+{% endblock %}

@@ -251,18 +251,37 @@ function confirmPick() {
     }
 }
 
-// Success animation on form submit
+// Success animation on form submit — only shows after server confirms
 document.getElementById('order-form').addEventListener('submit', function(e) {
     var dishId = document.getElementById('dish_id').value;
     if (!dishId) return;
     e.preventDefault();
     var form = this;
     var overlay = document.getElementById('success-overlay');
-    overlay.classList.remove('hidden');
-    overlay.classList.add('flex');
-    setTimeout(function() {
-        form.submit();
-    }, 1500);
+    var btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> 提交中...';
+
+    fetch('/add-item', {
+        method: 'POST',
+        body: new FormData(form),
+    }).then(function(response) {
+        if (response.ok || response.redirected) {
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            setTimeout(function() {
+                window.location.href = response.redirected ? response.url : '/my-orders?msg=点餐成功！';
+            }, 1500);
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> 立即点餐';
+            showToast('点餐失败，请重试', 'error');
+        }
+    }).catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> 立即点餐';
+        showToast('网络错误，请检查后重试', 'error');
+    });
 });
 </script>
 {% endblock %}

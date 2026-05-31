@@ -18,6 +18,7 @@ Dockerfile
 dev.db
 .python-version
 .venv/
+tests/
 host/
 static/uploads/*
 !static/uploads/.gitkeep

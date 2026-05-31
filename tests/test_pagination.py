@@ -1,5 +1,6 @@
-from app import crud, schemas
 from conftest import _csrf
+
+from app import crud, schemas
 
 
 def test_history_pagination_defaults_to_page_1(client, db):

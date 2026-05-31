@@ -9,28 +9,43 @@ dist/
 build/
 .eggs/
 
-# Virtual environments
-.env
-.venv
-env/
+# Package manager
+.venv/
 venv/
+env/
 
-# Testing
+# Testing / Linting
 .pytest_cache/
 .coverage
 .coverage.*
 htmlcov/
 coverage.xml
+.ruff_cache/
+.mypy_cache/
 
-# IDE
+# IDE / Editor
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# Temp / Backup
+*.tmp
+*.bak
+
+# Secrets
+.env
+.env.*
+!.env.example
+.cookie_secret
 
 # Project: uploads
 static/uploads/*
@@ -40,8 +55,8 @@ static/uploads/*
 *.db
 *.sqlite
 
-# Project: security
-.cookie_secret
+# Project: Docker (local overrides)
+docker-compose.override.yml
 
 # Project: AI tools
 host/agy-proxy.log

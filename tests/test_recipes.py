@@ -2,11 +2,11 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from conftest import _login
 
 from app import crud, schemas
 from app.ai_client import RECIPE_PROMPT_TEMPLATE
-from app.routers.dishes import _parse_recipe_from_form
-from conftest import _login
+from app.recipe_utils import parse_recipe_from_form as _parse_recipe_from_form
 
 MOCK_RECIPE_JSON = json.dumps({
     "ingredients": [

@@ -1,7 +1,6 @@
 import pytest
 
 from app import crud, schemas
-from conftest import _csrf
 
 
 def test_root_redirects_to_login_when_unauthenticated(client, db):

@@ -1,29 +1,16 @@
 import hashlib
 import hmac
-import os
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 
 import bcrypt
 
-COOKIE_SECRET = None
+from .config import settings
 
-
-def _load_or_create_secret(path: str) -> str:
-    if os.path.exists(path):
-        with open(path) as f:
-            return f.read().strip()
-    secret = os.urandom(32).hex()
-    with open(path, "w") as f:
-        f.write(secret)
-    os.chmod(path, 0o600)
-    return secret
-
-
-COOKIE_SECRET = os.getenv("COOKIE_SECRET") or _load_or_create_secret(".cookie_secret")
+COOKIE_SECRET = settings.COOKIE_SECRET
 
 
 def is_production():
-    return os.getenv("ENV", "").lower() == "production"
+    return settings.is_production
 
 
 def verify_password(plain_password: str, hashed_password: str):
@@ -59,4 +46,3 @@ def verify_cookie_value(signed: str) -> str | None:
     except Exception:
         pass
     return None
-

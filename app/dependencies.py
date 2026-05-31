@@ -14,6 +14,7 @@ from .database import get_db
 templates = Jinja2Templates(directory="templates")
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+SUPPORTED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 SUPPORTED_MSG = "支持的格式: JPG, JPEG, PNG, GIF, WebP"
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -58,6 +59,8 @@ async def save_upload_file(file: UploadFile, destination_dir: str) -> str:
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"不支持的文件格式: {ext}. {SUPPORTED_MSG}")
+    if file.content_type and file.content_type not in SUPPORTED_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"不支持的文件类型: {file.content_type}. {SUPPORTED_MSG}")
     os.makedirs(destination_dir, exist_ok=True)
     filename = f"{uuid.uuid4()}{ext}"
     filepath = os.path.join(destination_dir, filename)
@@ -78,7 +81,10 @@ async def save_upload_file(file: UploadFile, destination_dir: str) -> str:
 
 def delete_old_image(image_url: Optional[str]):
     if image_url and image_url.startswith("/static/uploads/"):
-        relative_path = image_url.lstrip("/")
+        relative_path = os.path.normpath(image_url.lstrip("/"))
+        # Ensure normalized path is still within uploads directory (prevent path traversal)
+        if not relative_path.startswith("static/uploads/"):
+            return
         if os.path.exists(relative_path):
             try:
                 os.remove(relative_path)

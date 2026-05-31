@@ -32,7 +32,7 @@
         </div>
     </div>
 
-    <div id="recipe-modal-content" class="p-6 overflow-y-auto max-h-[70vh] transition-opacity duration-300">
+    <div id="recipe-modal-content" class="p-4 sm:p-6 overflow-y-auto max-h-[55vh] sm:max-h-[70vh] transition-opacity duration-300">
         {% if not recipe and not edit_mode %}
         <div class="py-12 flex flex-col items-center justify-center text-center space-y-4">
             <div class="w-16 h-16 rounded-full bg-stone-50 flex items-center justify-center text-stone-200">
@@ -90,7 +90,7 @@
                         <i class="fas fa-edit"></i> 修改
                     </button>
                 </div>
-                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                     {% for i in recipe.ingredients %}
                     <div class="flex items-center justify-between border-b border-stone-50 pb-1">
                         <span class="text-xs text-stone-700">{{ i.name }}</span>

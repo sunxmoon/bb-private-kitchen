@@ -1,5 +1,5 @@
+import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 
 import structlog
@@ -7,17 +7,17 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from .config import settings
 from .csrf import CSRF_COOKIE_NAME, generate_csrf_token
 from .database import engine
 from .dependencies import templates
 from .routers import admin, auth, dishes, history, orders, recipes
+from .routers import settings as settings_page_router
 from .security import is_production
 
 
 def _configure_logging():
-    log_level = logging.INFO
-    if os.getenv("TESTING") == "1":
-        log_level = logging.WARNING
+    log_level = logging.WARNING if settings.is_testing else logging.INFO
 
     structlog.configure(
         processors=[
@@ -52,23 +52,12 @@ def _run_migrations():
     alembic_cfg = Config("alembic.ini")
     insp = inspect(engine)
 
-    if "users" in insp.get_table_names():
-        if "alembic_version" not in insp.get_table_names():
-            # First time with Alembic — stamp initial, then apply pending
-            logger.info("Existing database detected, stamping initial revision and applying pending migrations")
-            command.stamp(alembic_cfg, "001")
-            command.upgrade(alembic_cfg, "head")
-        else:
-            # Alembic already initialized — check if category column exists (fix for bad stamp)
-            if "dishes" in insp.get_table_names():
-                columns = {c["name"] for c in insp.get_columns("dishes")}
-                if "category" not in columns:
-                    logger.info("Missing category column, re-stamping and upgrading")
-                    command.stamp(alembic_cfg, "001")
-            command.upgrade(alembic_cfg, "head")
-    else:
-        # New database — Alembic creates everything
-        command.upgrade(alembic_cfg, "head")
+    if "users" in insp.get_table_names() and "alembic_version" not in insp.get_table_names():
+        # Existing database without Alembic — stamp initial, then upgrade
+        logger.info("Existing database detected, stamping initial revision")
+        command.stamp(alembic_cfg, "001")
+
+    command.upgrade(alembic_cfg, "head")
 
 
 def _seed_database():
@@ -93,9 +82,9 @@ def _seed_database():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if os.getenv("TESTING") != "1":
-        _run_migrations()
-        _seed_database()
+    if not settings.is_testing:
+        await asyncio.to_thread(_run_migrations)
+        await asyncio.to_thread(_seed_database)
         from .ai_client import ai_client
         available = await ai_client.check_available()
         if available:
@@ -117,9 +106,11 @@ async def health_check():
     try:
         from .database import SessionLocal
         db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
-        db_ok = True
+        try:
+            db.execute(text("SELECT 1"))
+            db_ok = True
+        finally:
+            db.close()
     except Exception:
         pass
     ai_ok = False
@@ -141,6 +132,7 @@ app.include_router(orders.router)
 app.include_router(recipes.router)
 app.include_router(admin.router)
 app.include_router(history.router)
+app.include_router(settings_page_router.router)
 
 
 @app.middleware("http")
