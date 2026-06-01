@@ -63,9 +63,12 @@ async def update_user(
     current_user: models.User = Depends(require_admin),
 ):
     if not crud.get_user(db, target_user_id):
-        return RedirectResponse(url="/admin?msg=用户不存在", status_code=404)
+        return RedirectResponse(url="/admin?msg=用户不存在", status_code=303)
     update_data = {}
     if name:
+        existing = crud.get_user_by_name(db, name)
+        if existing and existing.id != target_user_id:
+            return RedirectResponse(url="/admin?msg=用户名已存在", status_code=303)
         update_data["name"] = name
     if password:
         update_data["password"] = password
@@ -91,6 +94,6 @@ async def delete_user(
         return RedirectResponse(url="/admin?error=self_delete", status_code=303)
     target = crud.get_user(db, target_user_id)
     if not target:
-        return RedirectResponse(url="/admin?msg=用户不存在", status_code=404)
+        return RedirectResponse(url="/admin?msg=用户不存在", status_code=303)
     crud.delete_user(db, target_user_id, current_user.id)
     return RedirectResponse(url="/admin?msg=用户已移除", status_code=303)

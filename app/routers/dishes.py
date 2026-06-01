@@ -109,6 +109,7 @@ async def update_dish(
     dish_id: int,
     name: str = Form(...),
     description: str = Form(None),
+    category: str = Form(""),
     file: UploadFile = File(None),
     recipe_ingredients: str = Form(None),
     recipe_steps: str = Form(None),
@@ -123,7 +124,7 @@ async def update_dish(
         return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
     if dish.created_by != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/?msg=只能修改自己创建的菜品", status_code=303)
-    dish_data = {"name": name}
+    dish_data = {"name": name, "category": category}
     if description is not None:
         dish_data["description"] = description
     if file and file.filename:

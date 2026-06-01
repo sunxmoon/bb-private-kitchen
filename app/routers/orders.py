@@ -6,7 +6,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import crud, models, schemas
-from ..csrf import csrf_guard
 from ..database import get_db
 from ..dependencies import get_common_context, login_required, require_admin, templates
 
@@ -117,7 +116,7 @@ async def complete_item(
 ):
     item = crud.get_order_item(db, item_id)
     if not item:
-        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=404)
+        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=303)
     if item.user_id != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/my-orders?msg=只能完成自己的点单", status_code=303)
     crud.update_order_item(db, item_id, {"status": "completed"}, current_user.id)
@@ -132,7 +131,7 @@ async def delay_item(
 ):
     item = crud.get_order_item(db, item_id)
     if not item:
-        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=404)
+        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=303)
     if item.user_id != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/my-orders?msg=只能延期自己的点单", status_code=303)
     crud.update_order_item(db, item_id, {"status": "delayed"}, current_user.id)
@@ -147,7 +146,7 @@ async def delete_item(
 ):
     item = crud.get_order_item(db, item_id)
     if not item:
-        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=404)
+        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=303)
     if item.user_id != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/my-orders?msg=只能取消自己的点单", status_code=303)
     crud.delete_order_item(db, item_id, current_user.id)
@@ -172,7 +171,6 @@ async def complete_order(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(login_required),
 ):
-    await csrf_guard(request)
     order = crud.get_current_order(db)
     if not order or not order.items:
         return RedirectResponse(url="/my-orders?msg=当前无订单", status_code=303)
@@ -206,7 +204,7 @@ async def rate_item(
         return RedirectResponse(url="/my-orders?msg=评分无效", status_code=303)
     item = crud.get_order_item(db, item_id)
     if not item:
-        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=404)
+        return RedirectResponse(url="/my-orders?msg=订单项不存在", status_code=303)
     if item.user_id != current_user.id and current_user.role != "admin":
         return RedirectResponse(url="/my-orders?msg=只能评价自己的点单", status_code=303)
     result = crud.rate_dish(db, item_id, rating, current_user.id)

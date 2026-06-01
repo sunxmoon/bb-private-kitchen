@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import crud, models
-from ..csrf import csrf_guard, get_csrf_token
+from ..csrf import get_csrf_token
 from ..database import get_db
 from ..dependencies import login_required, templates
 
@@ -32,7 +32,6 @@ async def update_settings(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(login_required),
 ):
-    await csrf_guard(request)
     update_data = {}
     if password:
         if len(password) < 8:
