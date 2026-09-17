@@ -1,11 +1,12 @@
 import os
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.database import Base
+from alembic import context
 from app import models  # noqa: F401 — ensure all models are registered
+from app.config import settings
+from app.database import Base
 
 config = context.config
 
@@ -14,8 +15,8 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url from environment
-db_url = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/ordering_db")
+# Override sqlalchemy.url from environment or settings
+db_url = os.getenv("DATABASE_URL") or settings.DATABASE_URL
 config.set_main_option("sqlalchemy.url", db_url)
 
 

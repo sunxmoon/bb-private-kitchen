@@ -8,23 +8,26 @@ from app import crud, schemas
 from app.ai_client import RECIPE_PROMPT_TEMPLATE
 from app.recipe_utils import parse_recipe_from_form as _parse_recipe_from_form
 
-MOCK_RECIPE_JSON = json.dumps({
-    "ingredients": [
-        {"name": "五花肉", "amount": "500g"},
-        {"name": "冰糖", "amount": "30g"},
-    ],
-    "steps": [
-        "五花肉切块，冷水下锅焯水3分钟",
-        "锅中放少许油，加入冰糖小火炒出糖色",
-        "放入五花肉翻炒上色，加入葱姜八角",
-        "加入料酒、生抽、老抽，倒入开水没过肉面",
-        "大火烧开后转小火慢炖45分钟",
-        "最后大火收汁，出锅装盘",
-    ],
-    "cook_time": "60分钟",
-    "difficulty": "中等",
-    "tips": "焯水后用温水冲洗，肉质更嫩",
-}, ensure_ascii=False)
+MOCK_RECIPE_JSON = json.dumps(
+    {
+        "ingredients": [
+            {"name": "五花肉", "amount": "500g"},
+            {"name": "冰糖", "amount": "30g"},
+        ],
+        "steps": [
+            "五花肉切块，冷水下锅焯水3分钟",
+            "锅中放少许油，加入冰糖小火炒出糖色",
+            "放入五花肉翻炒上色，加入葱姜八角",
+            "加入料酒、生抽、老抽，倒入开水没过肉面",
+            "大火烧开后转小火慢炖45分钟",
+            "最后大火收汁，出锅装盘",
+        ],
+        "cook_time": "60分钟",
+        "difficulty": "中等",
+        "tips": "焯水后用温水冲洗，肉质更嫩",
+    },
+    ensure_ascii=False,
+)
 
 
 @pytest.fixture
@@ -228,7 +231,9 @@ class TestParseRecipeForm:
         content = _parse_recipe_from_form(
             "500g 五花肉\n30g 冰糖",
             "切块\n焯水\n翻炒",
-            "45分钟", "中等", "小心烫手",
+            "45分钟",
+            "中等",
+            "小心烫手",
         )
         assert content is not None
         assert len(content["ingredients"]) == 2
@@ -253,10 +258,7 @@ class TestParseRecipeForm:
 class TestAIClient:
     def test_prompt_format(self):
         """Test the prompt template renders correctly."""
-        prompt = RECIPE_PROMPT_TEMPLATE.format(
-            dish_name="麻婆豆腐",
-            description_text="菜品描述：麻辣鲜香"
-        )
+        prompt = RECIPE_PROMPT_TEMPLATE.format(dish_name="麻婆豆腐", description_text="菜品描述：麻辣鲜香")
         assert "麻婆豆腐" in prompt
         assert "麻辣鲜香" in prompt
         assert "JSON" in prompt

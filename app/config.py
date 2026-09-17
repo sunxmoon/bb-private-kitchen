@@ -12,6 +12,7 @@ def _load_or_create_cookie_secret() -> str:
     if secret_file.exists():
         return secret_file.read_text().strip()
     import secrets
+
     secret = secrets.token_hex(32)
     secret_file.write_text(secret)
     secret_file.chmod(0o600)

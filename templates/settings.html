@@ -1,39 +1,121 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="text-center mb-6">
-    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm" style="background:var(--brand-bg);color:var(--brand)">
-        <i class="fas fa-cog text-2xl"></i>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+    <div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-black px-2.5 py-0.5 rounded-full" style="background:var(--brand-soft);color:var(--brand)">
+                <i class="fas fa-sliders text-[10px] mr-1"></i>个性偏好
+            </span>
+        </div>
+        <h2 class="text-2xl md:text-3xl font-black text-stone-800 tracking-tight mt-1">个人中心与设置</h2>
+        <p class="text-xs text-stone-400 mt-0.5">定制专属品牌主题色与安全设置</p>
     </div>
-    <h2 class="text-2xl font-black text-stone-800">个人设置</h2>
-    <p class="text-xs text-stone-400 mt-1">修改密码和个性化设置</p>
+    <div class="flex items-center gap-2">
+        <a href="/" class="btn btn-ghost !h-10 !px-3.5 text-xs font-bold rounded-xl border border-stone-200 bg-white">
+            <i class="fas fa-arrow-left mr-1.5 text-stone-400"></i> 返回主页
+        </a>
+    </div>
 </div>
 
-<form action="/settings" method="POST" class="space-y-4">
+<form action="/settings" method="POST" class="space-y-5 max-w-xl">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-    <div class="card p-5 space-y-4">
-        <div class="flex items-center gap-2 mb-1">
-            <i class="fas fa-lock text-stone-400 text-xs"></i>
-            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">修改密码</span>
+    <!-- User Identity Overview Card -->
+    <div class="card p-5 bg-white border border-stone-200/80 shadow-sm flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-md shrink-0"
+             style="background: linear-gradient(135deg, {{ current_user.theme_color or 'var(--brand)' }}, {{ current_user.theme_color or 'var(--brand-dark)' }});">
+            {{ current_user.name[0] }}
+        </div>
+        <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+                <h3 class="font-black text-base text-stone-800">{{ current_user.name }}</h3>
+                <span class="text-[10px] font-black px-2 py-0.5 rounded-md {% if current_user.role == 'admin' %}bg-orange-50 text-orange-600 border border-orange-200/60{% else %}bg-stone-100 text-stone-600{% endif %}">
+                    {{ '管理员' if current_user.role == 'admin' else '家庭成员' }}
+                </span>
+            </div>
+            <p class="text-[11px] text-stone-400 mt-0.5">私厨伴侣 · 快乐干饭每一天</p>
+        </div>
+    </div>
+
+    <!-- Theme Color Palette Studio -->
+    <div class="card p-6 bg-white border border-stone-200/80 shadow-sm space-y-4">
+        <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center text-xs font-bold">
+                <i class="fas fa-palette"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-black text-stone-800">全站主题色定制</h3>
+                <p class="text-[10px] text-stone-400">选择属于你的专属主色调，界面将实时动态换肤</p>
+            </div>
+        </div>
+
+        <!-- Curated Preset Colors Grid -->
+        <div>
+            <label class="input-label mb-2 text-xs font-bold text-stone-500">经典美食推荐色系</label>
+            <div class="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
+                {% set presets = [
+                    ('#f97316', '暖日落橙'),
+                    ('#e11d48', '山茶茱萸'),
+                    ('#16a34a', '青竹抹茶'),
+                    ('#d97706', '南瓜暖金'),
+                    ('#0284c7', '海盐湖蓝'),
+                    ('#9333ea', '香芋轻紫'),
+                    ('#0d9488', '青瓷碧绿'),
+                    ('#475569', '烟波玄灰')
+                ] %}
+                {% for hex, label in presets %}
+                <button type="button" onclick="selectColor('{{ hex }}')" 
+                        class="flex flex-col items-center gap-1.5 p-2 rounded-2xl border border-stone-100 hover:border-stone-300 hover:bg-stone-50 transition-all group" title="{{ label }}">
+                    <span class="w-7 h-7 rounded-xl shadow-sm border-2 border-white group-hover:scale-110 transition-transform" style="background: {{ hex }};"></span>
+                    <span class="text-[9px] font-bold text-stone-500 truncate w-full text-center">{{ label }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="pt-2 border-t border-stone-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-stone-600">自定义十六进制颜色：</span>
+            <div class="flex items-center gap-3">
+                <input type="color" id="theme_color_picker" name="theme_color" value="{{ current_user.theme_color or '#f97316' }}" 
+                       class="w-10 h-10 rounded-xl border border-stone-200 cursor-pointer p-0.5">
+                <span id="hex-preview" class="text-xs font-mono font-bold text-stone-500">{{ current_user.theme_color or '#f97316' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Password Card -->
+    <div class="card p-6 bg-white border border-stone-200/80 shadow-sm space-y-4">
+        <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center text-xs font-bold">
+                <i class="fas fa-lock"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-black text-stone-800">安全修改密码</h3>
+                <p class="text-[10px] text-stone-400">如需修改登录密码，请输入新密码（至少8位）</p>
+            </div>
         </div>
         <div>
-            <label class="input-label">新密码（至少8个字符）</label>
-            <input type="password" name="password" class="input" placeholder="留空则不修改" minlength="8">
+            <input type="password" name="password" class="input !min-h-[44px] text-xs" placeholder="留空则保持原密码不变" minlength="8">
         </div>
     </div>
 
-    <div class="card p-5 space-y-4">
-        <div class="flex items-center gap-2 mb-1">
-            <i class="fas fa-palette text-stone-400 text-xs"></i>
-            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">主题色</span>
-        </div>
-        <div class="flex items-center gap-4">
-            <input type="color" name="theme_color" value="{{ current_user.theme_color or '#f97316' }}" class="w-12 h-12 rounded-xl border border-stone-200 cursor-pointer">
-            <span class="text-xs text-stone-400">点击选择颜色</span>
-        </div>
-    </div>
-
-    <button type="submit" class="btn btn-primary w-full py-4">保存设置</button>
+    <button type="submit" class="btn btn-primary w-full py-3.5 text-sm font-black rounded-2xl shadow-lg shadow-orange-500/25">
+        保存个人设置
+    </button>
 </form>
+
+<script>
+function selectColor(hex) {
+    const picker = document.getElementById('theme_color_picker');
+    const preview = document.getElementById('hex-preview');
+    if (picker) picker.value = hex;
+    if (preview) preview.textContent = hex;
+}
+
+document.getElementById('theme_color_picker')?.addEventListener('input', function() {
+    const preview = document.getElementById('hex-preview');
+    if (preview) preview.textContent = this.value;
+});
+</script>
 {% endblock %}

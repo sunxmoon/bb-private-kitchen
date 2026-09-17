@@ -1,44 +1,264 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="text-center mb-6">
-    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm" style="background:var(--brand-bg);color:var(--brand)">
-        <i class="fas fa-shopping-basket text-2xl"></i>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+    <div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-black px-2.5 py-0.5 rounded-full" style="background:var(--brand-soft);color:var(--brand)">
+                <i class="fas fa-shopping-basket text-[10px] mr-1"></i>食材采购
+            </span>
+            {% if order_id %}
+            <span class="text-[11px] font-bold text-stone-400">订单 #{{ order_id }} 配套食材</span>
+            {% endif %}
+        </div>
+        <h2 class="text-2xl md:text-3xl font-black text-stone-800 tracking-tight mt-1">超市采购清单</h2>
+        <p class="text-xs text-stone-400 mt-0.5">按商超货架智能归类 · 支持离线勾选与自动汇总</p>
     </div>
-    <h2 class="text-2xl font-black text-stone-800">购物清单</h2>
-    <p class="text-xs text-stone-400 mt-1">{% if order_id %}订单 #{{ order_id }} 所需食材{% else %}当前无待处理订单{% endif %}</p>
+    <div class="flex items-center gap-2">
+        <a href="/my-orders" class="btn btn-ghost !h-10 !px-3.5 text-xs font-bold rounded-xl border border-stone-200 bg-white">
+            <i class="fas fa-arrow-left mr-1.5 text-stone-400"></i> 返回订单
+        </a>
+    </div>
 </div>
 
 {% if shopping_items %}
-<div class="card p-4 mb-4">
-    <div class="flex items-center gap-2 mb-3">
-        <i class="fas fa-list-check text-xs" style="color:var(--brand)"></i>
-        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">食材汇总</span>
-        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="color:var(--brand);background:var(--brand-bg)">{{ shopping_items|length }} 种</span>
-    </div>
-    <div class="space-y-2">
-        {% for item in shopping_items %}
-        <div class="flex items-center justify-between py-2 border-b border-stone-50 last:border-0">
-            <div class="flex-1 min-w-0">
-                <p class="font-bold text-sm text-stone-800">{{ item.name }}</p>
-                <p class="text-[10px] text-stone-400">用于：{{ item.dishes | join('、') }}</p>
+<!-- Shopping Progress Card -->
+<div class="card p-5 bg-white border border-stone-200/80 shadow-sm space-y-3">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-base font-black shadow-md bg-gradient-to-tr from-orange-500 to-amber-500 shrink-0">
+                <i class="fas fa-basket-shopping"></i>
             </div>
-            <span class="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 ml-3" style="color:var(--brand);background:var(--brand-bg)">{{ item.qty }}</span>
+            <div>
+                <h3 class="font-black text-sm text-stone-800" id="progress-title">采买进度</h3>
+                <p class="text-[11px] text-stone-400 mt-0.5" id="progress-subtitle">加载中...</p>
+            </div>
         </div>
-        {% endfor %}
+        <div class="flex items-center gap-2">
+            <button type="button" onclick="resetAllChecked()" class="text-[11px] font-bold text-stone-400 hover:text-orange-500 px-2.5 py-1 rounded-lg hover:bg-stone-50 transition-colors">
+                <i class="fas fa-rotate-left mr-1"></i>重置
+            </button>
+            <span id="progress-percent-badge" class="text-xs font-black px-2.5 py-1 rounded-xl bg-orange-50 text-orange-600">
+                0%
+            </span>
+        </div>
+    </div>
+    <!-- Visual Progress Bar -->
+    <div class="w-full bg-stone-100 h-2 rounded-full overflow-hidden p-0.5">
+        <div id="shopping-progress-fill" class="h-full rounded-full transition-all duration-300 ease-out bg-gradient-to-r from-orange-500 to-amber-400" style="width: 0%"></div>
     </div>
 </div>
+
+<!-- Filter Tabs: All / Pending / Done -->
+<div class="flex items-center justify-between select-none">
+    <div class="inline-flex p-1 bg-stone-100 rounded-2xl border border-stone-200/60">
+        <button type="button" onclick="filterItems('all')" id="filter-all" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all bg-white text-stone-800 shadow-sm">
+            全部食材
+        </button>
+        <button type="button" onclick="filterItems('pending')" id="filter-pending" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all text-stone-500 hover:text-stone-800">
+            待采购
+        </button>
+        <button type="button" onclick="filterItems('checked')" id="filter-checked" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all text-stone-500 hover:text-stone-800">
+            已买好
+        </button>
+    </div>
+</div>
+
+<!-- Categorized Items Grid (1 col on mobile, 2 cols on tablet/desktop) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="shopping-list-container" data-order-id="{{ order_id }}">
+    {% for cat in shopping_items %}
+    <div class="card p-5 bg-white border border-stone-200/80 shadow-sm space-y-3.5 category-group">
+        <!-- Category Title Bar -->
+        <div class="flex items-center justify-between pb-2 border-b border-stone-100">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                <h3 class="font-black text-sm text-stone-800">{{ cat.category }}</h3>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">
+                {{ cat['items']|length }} 种
+            </span>
+        </div>
+
+        <!-- Ingredients List -->
+        <div class="space-y-2.5">
+            {% for item in cat['items'] %}
+            <div class="shopping-item-row flex items-center justify-between py-2 px-2.5 rounded-xl transition-all duration-200 border border-transparent hover:border-stone-100 hover:bg-stone-50/60 cursor-pointer"
+                 onclick="toggleItemRow(this)">
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <input type="checkbox" class="ingredient-cb w-5 h-5 text-orange-500 rounded-lg border-stone-300 focus:ring-orange-500 shrink-0 cursor-pointer" 
+                           data-name="{{ item.name }}" onclick="event.stopPropagation(); updateItemState(this)">
+                    <div class="flex-1 min-w-0 ingredient-text transition-all">
+                        <p class="font-black text-sm text-stone-800 truncate item-name">{{ item.name }}</p>
+                        <p class="text-[10px] text-stone-400 truncate mt-0.5">配套：{{ item.dishes | join('、') }}</p>
+                    </div>
+                </div>
+                <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg shrink-0 ml-3 bg-orange-50 text-orange-600 border border-orange-100">
+                    {{ item.qty }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+let currentFilter = 'all';
+
+function getStorageKey() {
+    const container = document.getElementById("shopping-list-container");
+    const orderId = container?.dataset.orderId || 'default';
+    return `shopping_list_${orderId}`;
+}
+
+function getCheckedState() {
+    try {
+        return JSON.parse(localStorage.getItem(getStorageKey())) || {};
+    } catch(e) {
+        return {};
+    }
+}
+
+function saveCheckedState(state) {
+    try {
+        localStorage.setItem(getStorageKey(), JSON.stringify(state));
+    } catch(e) {}
+}
+
+function updateItemState(checkbox) {
+    const name = checkbox.dataset.name;
+    const row = checkbox.closest('.shopping-item-row');
+    const text = row.querySelector('.ingredient-text');
+    const state = getCheckedState();
+
+    state[name] = checkbox.checked;
+    saveCheckedState(state);
+
+    if (checkbox.checked) {
+        row.classList.add('opacity-45');
+        text.classList.add('line-through');
+        row.dataset.checked = 'true';
+    } else {
+        row.classList.remove('opacity-45');
+        text.classList.remove('line-through');
+        row.dataset.checked = 'false';
+    }
+
+    recalcProgress();
+    applyFilter();
+}
+
+function toggleItemRow(row) {
+    const cb = row.querySelector('.ingredient-cb');
+    if (cb) {
+        cb.checked = !cb.checked;
+        updateItemState(cb);
+    }
+}
+
+function recalcProgress() {
+    const all = document.querySelectorAll('.ingredient-cb');
+    const total = all.length;
+    let checkedCount = 0;
+    all.forEach(cb => {
+        if (cb.checked) checkedCount++;
+    });
+
+    const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+    const subtitle = document.getElementById('progress-subtitle');
+    const badge = document.getElementById('progress-percent-badge');
+    const fill = document.getElementById('shopping-progress-fill');
+
+    if (subtitle) subtitle.textContent = `共 ${total} 种食材 · 已购 ${checkedCount} 种 · 剩余 ${total - checkedCount} 种`;
+    if (badge) badge.textContent = `${percent}%`;
+    if (fill) fill.style.width = `${percent}%`;
+}
+
+function filterItems(type) {
+    currentFilter = type;
+    ['all', 'pending', 'checked'].forEach(t => {
+        const btn = document.getElementById(`filter-${t}`);
+        if (t === type) {
+            btn?.classList.add('bg-white', 'text-stone-800', 'shadow-sm');
+            btn?.classList.remove('text-stone-500');
+        } else {
+            btn?.classList.remove('bg-white', 'text-stone-800', 'shadow-sm');
+            btn?.classList.add('text-stone-500');
+        }
+    });
+    applyFilter();
+}
+
+function applyFilter() {
+    document.querySelectorAll('.shopping-item-row').forEach(row => {
+        const isChecked = row.dataset.checked === 'true';
+        if (currentFilter === 'all') {
+            row.classList.remove('hidden');
+        } else if (currentFilter === 'pending') {
+            if (isChecked) row.classList.add('hidden');
+            else row.classList.remove('hidden');
+        } else if (currentFilter === 'checked') {
+            if (!isChecked) row.classList.add('hidden');
+            else row.classList.remove('hidden');
+        }
+    });
+
+    // Hide empty category boxes under filter
+    document.querySelectorAll('.category-group').forEach(group => {
+        const visibleRows = group.querySelectorAll('.shopping-item-row:not(.hidden)');
+        if (visibleRows.length === 0 && currentFilter !== 'all') {
+            group.classList.add('hidden');
+        } else {
+            group.classList.remove('hidden');
+        }
+    });
+}
+
+function resetAllChecked() {
+    if (!confirm('确定清空本单的所有采买勾选记录吗？')) return;
+    saveCheckedState({});
+    document.querySelectorAll('.ingredient-cb').forEach(cb => {
+        cb.checked = false;
+        const row = cb.closest('.shopping-item-row');
+        const text = row.querySelector('.ingredient-text');
+        row.classList.remove('opacity-45');
+        text.classList.remove('line-through');
+        row.dataset.checked = 'false';
+    });
+    recalcProgress();
+    applyFilter();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    const state = getCheckedState();
+    document.querySelectorAll(".ingredient-cb").forEach(cb => {
+        const name = cb.dataset.name;
+        const row = cb.closest('.shopping-item-row');
+        const text = row.querySelector('.ingredient-text');
+        if (state[name]) {
+            cb.checked = true;
+            row.classList.add('opacity-45');
+            text.classList.add('line-through');
+            row.dataset.checked = 'true';
+        } else {
+            row.dataset.checked = 'false';
+        }
+    });
+    recalcProgress();
+});
+</script>
+
 {% else %}
-<div class="card p-16 flex flex-col items-center justify-center text-center">
-    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-bg);color:var(--brand)">
+<div class="card p-16 flex flex-col items-center justify-center text-center bg-white border border-stone-200/80">
+    <div class="w-16 h-16 rounded-3xl flex items-center justify-center mb-4" style="background:var(--brand-soft);color:var(--brand)">
         <i class="fas fa-shopping-basket text-2xl"></i>
     </div>
-    <p class="font-bold text-stone-600 text-lg mb-1">没有待采购的食材</p>
-    <p class="text-sm text-stone-400">{% if order_id %}所有菜品都已完成{% else %}当前无订单{% endif %}</p>
+    <p class="font-black text-stone-800 text-lg mb-1">当前没有待采购的食材</p>
+    <p class="text-xs text-stone-400 mb-6">{% if order_id %}当前订单的所有菜品都已出锅享用！{% else %}快去挑选几道佳肴加入点餐吧！{% endif %}</p>
+    <a href="/order" class="btn btn-primary !h-11 !px-6 text-sm font-black rounded-2xl shadow-lg shadow-orange-500/25">
+        <i class="fas fa-plus mr-1.5"></i> 去点餐
+    </a>
 </div>
 {% endif %}
 
-<a href="/my-orders" class="btn btn-ghost w-full justify-center">
-    <i class="fas fa-arrow-left mr-2"></i> 返回订单
-</a>
 {% endblock %}

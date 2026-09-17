@@ -6,7 +6,7 @@ from .. import crud, models, schemas
 from ..ai_client import ai_client
 from ..csrf import get_csrf_token
 from ..database import get_db
-from ..dependencies import delete_old_image, get_common_context, login_required, save_upload_file, templates
+from ..dependencies import delete_old_image, get_common_context, login_required, redirect_with_flash, save_upload_file, templates
 from ..recipe_utils import save_recipe_form
 
 router = APIRouter(tags=["dishes"])
@@ -24,19 +24,23 @@ async def read_root(
     dishes = crud.search_dishes(db, q, cat) if (q or cat) else crud.get_dishes(db)
     categories = crud.get_dish_categories(db)
     current_order = crud.get_current_order(db)
-    return templates.TemplateResponse(request, "index.html", {
-        "dishes": dishes,
-        "categories": categories,
-        "current_order": current_order,
-        "ai_available": await ai_client.check_available(),
-        "search_query": q,
-        "current_category": cat,
-        **context,
-    })
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "dishes": dishes,
+            "categories": categories,
+            "current_order": current_order,
+            "ai_available": await ai_client.check_available(),
+            "search_query": q,
+            "current_category": cat,
+            **context,
+        },
+    )
 
 
 @router.get("/dish-detail/{dish_id}", response_class=HTMLResponse)
-async def dish_detail(
+def dish_detail(
     request: Request,
     dish_id: int,
     db: Session = Depends(get_db),
@@ -44,11 +48,15 @@ async def dish_detail(
 ):
     dish = crud.get_dish(db, dish_id)
     if not dish:
-        return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
-    return templates.TemplateResponse(request, "dish_detail_modal.html", {
-        "dish": dish,
-        "csrf_token": get_csrf_token(request),
-    })
+        return redirect_with_flash(url="/", msg="菜品不存在")
+    return templates.TemplateResponse(
+        request,
+        "dish_detail_modal.html",
+        {
+            "dish": dish,
+            "csrf_token": get_csrf_token(request),
+        },
+    )
 
 
 @router.post("/create-dish")
@@ -80,14 +88,20 @@ async def create_dish(
         delete_old_image(image_url)
     if recipe_ingredients or recipe_steps:
         save_recipe_form(
-            db, dish.id, recipe_ingredients, recipe_steps,
-            recipe_cook_time, recipe_difficulty, recipe_tips, current_user.id,
+            db,
+            dish.id,
+            recipe_ingredients,
+            recipe_steps,
+            recipe_cook_time,
+            recipe_difficulty,
+            recipe_tips,
+            current_user.id,
         )
-    return RedirectResponse(url="/?msg=新菜品已收录！", status_code=303)
+    return redirect_with_flash(url="/", msg="新菜品已收录！")
 
 
 @router.get("/get-preference/{dish_id}")
-async def get_preference(
+def get_preference(
     dish_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(login_required),
@@ -121,9 +135,9 @@ async def update_dish(
 ):
     dish = crud.get_dish(db, dish_id)
     if not dish:
-        return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
+        return redirect_with_flash(url="/", msg="菜品不存在")
     if dish.created_by != current_user.id and current_user.role != "admin":
-        return RedirectResponse(url="/?msg=只能修改自己创建的菜品", status_code=303)
+        return redirect_with_flash(url="/", msg="只能修改自己创建的菜品")
     dish_data = {"name": name, "category": category}
     if description is not None:
         dish_data["description"] = description
@@ -135,25 +149,31 @@ async def update_dish(
     crud.update_dish(db, dish_id, dish_data, current_user.id)
     if recipe_ingredients or recipe_steps:
         save_recipe_form(
-            db, dish_id, recipe_ingredients, recipe_steps,
-            recipe_cook_time, recipe_difficulty, recipe_tips, current_user.id,
+            db,
+            dish_id,
+            recipe_ingredients,
+            recipe_steps,
+            recipe_cook_time,
+            recipe_difficulty,
+            recipe_tips,
+            current_user.id,
         )
-    return RedirectResponse(url="/?msg=菜品已更新", status_code=303)
+    return redirect_with_flash(url="/", msg="菜品已更新")
 
 
 @router.post("/delete-dish/{dish_id}")
-async def delete_dish(
+def delete_dish(
     dish_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(login_required),
 ):
     dish = crud.get_dish(db, dish_id)
     if not dish:
-        return RedirectResponse(url="/?msg=菜品不存在", status_code=303)
+        return redirect_with_flash(url="/", msg="菜品不存在")
     if dish.created_by != current_user.id and current_user.role != "admin":
-        return RedirectResponse(url="/?msg=只能下架自己创建的菜品", status_code=303)
+        return redirect_with_flash(url="/", msg="只能下架自己创建的菜品")
     try:
         crud.delete_dish(db, dish_id, current_user.id)
     except ValueError as e:
         return RedirectResponse(url=f"/?msg={str(e)}", status_code=303)
-    return RedirectResponse(url="/?msg=菜品已下架", status_code=303)
+    return redirect_with_flash(url="/", msg="菜品已下架")

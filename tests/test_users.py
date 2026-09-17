@@ -52,7 +52,7 @@ def test_update_user_name(client, db):
     assert updated.name == "updated"
 
 
-def test_update_nonexistent_user_returns_404(client, db):
+def test_update_nonexistent_user_redirects(client, db):
     _login(client, db)
     token = _csrf(client)
     response = client.post(
@@ -60,7 +60,8 @@ def test_update_nonexistent_user_returns_404(client, db):
         data={"name": "ghost", "csrf_token": token},
         follow_redirects=False,
     )
-    assert response.status_code == 404
+    assert response.status_code == 303
+    assert "/admin" in response.headers["location"]
 
 
 def test_delete_user(client, db):
@@ -93,11 +94,12 @@ def test_delete_self_is_blocked(client, db):
     assert crud.get_user(db, user.id) is not None
 
 
-def test_delete_nonexistent_user_returns_404(client, db):
+def test_delete_nonexistent_user_redirects(client, db):
     _login(client, db)
     token = _csrf(client)
     response = client.post("/delete-user/99999", data={"csrf_token": token}, follow_redirects=False)
-    assert response.status_code == 404
+    assert response.status_code == 303
+    assert "/admin" in response.headers["location"]
 
 
 def test_users_page_requires_login(client, db):

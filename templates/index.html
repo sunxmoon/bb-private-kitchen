@@ -1,73 +1,97 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex items-center justify-between">
+<!-- Top Welcome Banner & Actions -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
-        <h2 class="text-xl font-black text-stone-800">今日菜单</h2>
-        <p class="text-xs text-stone-400 mt-0.5">今天想吃什么？</p>
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-black px-2.5 py-0.5 rounded-full" style="background:var(--brand-soft);color:var(--brand)">
+                <i class="fas fa-heart text-[10px] mr-1"></i>温馨私厨
+            </span>
+            <span class="text-[11px] font-bold text-stone-400">共收录 {{ dishes|length }} 道佳肴</span>
+        </div>
+        <h2 class="text-2xl md:text-3xl font-black text-stone-800 tracking-tight mt-1" id="time-greeting">今日菜单</h2>
+        <p class="text-xs text-stone-400 mt-0.5">挑几道想吃的菜，加入点餐篮告诉大厨~</p>
     </div>
-    <div class="flex items-center gap-2">
-        <button onclick="openAddDishModal()" class="w-11 h-11 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95" style="background:var(--brand-bg);color:var(--brand)">
-            <i class="fas fa-plus"></i>
+    <div class="flex items-center gap-2.5 shrink-0">
+        <button onclick="openAddDishModal()" class="btn btn-primary !h-11 !px-4 text-xs font-black rounded-2xl shadow-lg shadow-orange-500/25 flex items-center gap-2">
+            <i class="fas fa-plus text-xs"></i>
+            <span>收录新菜</span>
         </button>
-        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-500">{{ dishes|length }} 道</span>
     </div>
 </div>
 
-<div class="mb-4">
-    <div class="relative group">
-        <i class="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-orange-400 transition-colors z-10 pointer-events-none"></i>
-        <input type="text" id="dish-search" name="q" value="{{ search_query or '' }}" placeholder="搜索你心仪的菜品..."
-               class="input !pl-12 bg-white border-stone-200 focus:border-orange-300 focus:ring-4 focus:ring-orange-500/5 transition-all"
-               hx-get="/"
-               hx-trigger="input changed delay:300ms, search"
-               hx-target="#dish-list-container"
-               hx-swap="outerHTML show:none"
-               hx-include="[name='q']"
-               hx-history="false">
-    </div>
+<!-- Search Bar & Instant Filter -->
+<div class="relative w-full flex items-center group">
+    <span class="absolute pointer-events-none flex items-center justify-center text-stone-400 group-focus-within:text-orange-500 transition-colors" style="left: 18px; width: 20px; height: 20px; z-index: 10;">
+        <i class="fas fa-search text-sm text-stone-400"></i>
+    </span>
+    <input type="text" id="dish-search" name="q" value="{{ search_query or '' }}" placeholder="搜索菜名、食材、或口味特色..."
+           class="w-full bg-white border border-stone-200/90 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all shadow-sm text-sm text-stone-800 placeholder-stone-400 outline-none"
+           style="height: 50px; padding-left: 48px; padding-right: 44px; border-radius: 16px;"
+           hx-get="/"
+           hx-trigger="input changed delay:250ms, search"
+           hx-target="#dish-list-container"
+           hx-swap="outerHTML show:none"
+           hx-include="[name='q']"
+           hx-history="false">
+    {% if search_query %}
+    <a href="/" class="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-600 w-6 h-6 rounded-full flex items-center justify-center">
+        <i class="fas fa-times-circle text-sm"></i>
+    </a>
+    {% endif %}
 </div>
 
 <!-- Search skeleton loading -->
-<div id="search-skeleton" class="hidden grid grid-cols-1 gap-3">
-    <div class="skeleton-card flex items-center gap-4 p-3"><div class="skeleton skeleton-avatar shrink-0"></div><div class="flex-1"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div></div>
-    <div class="skeleton-card flex items-center gap-4 p-3"><div class="skeleton skeleton-avatar shrink-0"></div><div class="flex-1"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div></div>
-    <div class="skeleton-card flex items-center gap-4 p-3"><div class="skeleton skeleton-avatar shrink-0"></div><div class="flex-1"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div></div>
+<div id="search-skeleton" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+    <div class="card p-3.5 flex flex-row items-center gap-3.5 bg-white border border-stone-200/80 shadow-sm"><div class="skeleton w-24 h-24 rounded-2xl shrink-0"></div><div class="flex-1 space-y-2"><div class="skeleton skeleton-text w-3/4"></div><div class="skeleton skeleton-text-sm"></div></div></div>
+    <div class="card p-3.5 flex flex-row items-center gap-3.5 bg-white border border-stone-200/80 shadow-sm"><div class="skeleton w-24 h-24 rounded-2xl shrink-0"></div><div class="flex-1 space-y-2"><div class="skeleton skeleton-text w-3/4"></div><div class="skeleton skeleton-text-sm"></div></div></div>
 </div>
 
+<!-- Horizontal Category Pills Filter -->
 {% if categories %}
-<div class="mb-4 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+<div class="flex items-center gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide select-none">
     <a href="/"
-       class="text-[11px] font-bold px-3 py-1.5 rounded-lg shrink-0 transition-all {% if not current_category %}text-white shadow-sm{% else %}text-stone-400 bg-stone-50 hover:bg-stone-100{% endif %}"
-       {% if not current_category %}style="background:var(--brand)"{% endif %}>全部</a>
+       class="category-chip {% if not current_category %}active{% endif %}">
+        全部菜品
+    </a>
     {% for cat in categories %}
     <a href="/?cat={{ cat }}{% if search_query %}&q={{ search_query }}{% endif %}"
-       class="text-[11px] font-bold px-3 py-1.5 rounded-lg shrink-0 transition-all {% if current_category == cat %}text-white shadow-sm{% else %}text-stone-400 bg-stone-50 hover:bg-stone-100{% endif %}"
-       {% if current_category == cat %}style="background:var(--brand)"{% endif %}>{{ cat }}</a>
+       class="category-chip {% if current_category == cat %}active{% endif %}">
+        {{ cat }}
+    </a>
     {% endfor %}
 </div>
 {% endif %}
 
 <!-- Add Dish Modal -->
-<div id="add-dish-modal" class="hidden modal-overlay fixed inset-0 z-[70] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('add-dish-modal')">
-    <div class="card-elevated modal-content w-full max-w-sm p-6 overflow-hidden">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-black text-stone-800">收录新菜品</h3>
-            <button onclick="closeModal('add-dish-modal')" class="text-stone-400 hover:text-stone-600"><i class="fas fa-times"></i></button>
+<div id="add-dish-modal" class="hidden modal-overlay fixed inset-0 z-[70] bg-stone-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this)closeModal('add-dish-modal')">
+    <div class="card-elevated modal-content w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 overflow-hidden bg-white max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shadow-sm" style="background:linear-gradient(135deg,var(--brand),var(--brand-dark))">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-stone-800">收录私房新菜</h3>
+                    <p class="text-[10px] text-stone-400">丰富家庭菜单，记录私房美味</p>
+                </div>
+            </div>
+            <button onclick="closeModal('add-dish-modal')" class="w-8 h-8 rounded-full bg-stone-100 text-stone-400 hover:text-stone-600 flex items-center justify-center"><i class="fas fa-times text-xs"></i></button>
         </div>
         <form action="/create-dish" method="POST" enctype="multipart/form-data" class="space-y-4">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div>
                 <label class="input-label">菜品名称 <span class="text-red-400">*</span></label>
-                <input type="text" name="name" required class="input" placeholder="比如：秘制红烧肉">
+                <input type="text" name="name" required class="input" placeholder="比如：秘制红烧肉、清蒸鲈鱼">
             </div>
             <div>
-                <label class="input-label">菜品描述</label>
-                <textarea name="description" class="input h-20 resize-none" placeholder="这道菜的特色是..."></textarea>
+                <label class="input-label">菜品特色或故事</label>
+                <textarea name="description" class="input h-20 resize-none text-xs" placeholder="比如：外焦里嫩、少油微甜、宝宝最爱"></textarea>
             </div>
             <div>
-                <label class="input-label">分类</label>
-                <select name="category" class="input">
+                <label class="input-label">所属分类</label>
+                <select name="category" class="input text-xs font-bold text-stone-700">
                     <option value="">未分类</option>
                     {% for cat in ['荤菜','素菜','汤品','主食','甜品','凉菜','小吃'] %}
                     <option value="{{ cat }}">{{ cat }}</option>
@@ -75,34 +99,34 @@
                 </select>
             </div>
             <div>
-                <label class="input-label">上传照片</label>
-                <div class="flex items-start gap-3">
-                    <input type="file" name="file" id="dish-image-input" accept="image/*" class="text-sm text-stone-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-600 cursor-pointer">
-                    <img id="dish-image-preview" class="hidden w-14 h-14 rounded-xl object-cover border border-stone-200 shrink-0" alt="预览">
+                <label class="input-label">菜品照片</label>
+                <div class="flex items-center gap-3">
+                    <input type="file" name="file" id="dish-image-input" accept="image/*" class="text-xs text-stone-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-600 cursor-pointer">
+                    <img id="dish-image-preview" class="hidden w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0" alt="预览">
                 </div>
             </div>
-            <details class="group">
-                <summary class="flex items-center gap-2 text-xs font-bold text-stone-400 cursor-pointer py-1 select-none">
-                    <i class="fas fa-chevron-right text-[9px] transition-transform group-open:rotate-90"></i>
-                    添加菜谱 <span class="font-normal text-stone-300">（可选）</span>
+            <details class="group border border-stone-200/80 rounded-2xl p-3 bg-stone-50/50">
+                <summary class="flex items-center justify-between text-xs font-bold text-stone-500 cursor-pointer select-none">
+                    <span class="flex items-center gap-1.5"><i class="fas fa-book-open text-orange-500"></i> 添加私房菜谱 <span class="font-normal text-stone-300">（可选）</span></span>
+                    <i class="fas fa-chevron-right text-[9px] transition-transform group-open:rotate-90 text-stone-400"></i>
                 </summary>
-                <div class="mt-4 space-y-4">
+                <div class="mt-3 space-y-3 pt-3 border-t border-stone-100">
                     <div>
                         <label class="input-label">食材（每行一个，格式：用量 名称）</label>
-                        <textarea name="recipe_ingredients" class="input h-24 resize-none font-mono text-xs" placeholder="500g 五花肉&#10;30g 冰糖&#10;3片 姜"></textarea>
+                        <textarea name="recipe_ingredients" class="input h-20 resize-none font-mono text-xs" placeholder="500g 五花肉&#10;30g 冰糖&#10;3片 生姜"></textarea>
                     </div>
                     <div>
-                        <label class="input-label">步骤（每行一步）</label>
-                        <textarea name="recipe_steps" class="input h-24 resize-none" placeholder="五花肉切块，冷水下锅焯水3分钟&#10;锅中放少许油，加入冰糖小火炒出糖色&#10;..."></textarea>
+                        <label class="input-label">烹饪步骤（每行一步）</label>
+                        <textarea name="recipe_steps" class="input h-20 resize-none text-xs" placeholder="五花肉切块冷水下锅焯水3分钟&#10;小火炒出糖色入肉翻炒"></textarea>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="input-label">烹饪时间</label>
-                            <input type="text" name="recipe_cook_time" class="input" placeholder="60分钟">
+                            <label class="input-label">预计耗时</label>
+                            <input type="text" name="recipe_cook_time" class="input !min-h-[40px] text-xs" placeholder="30分钟">
                         </div>
                         <div>
                             <label class="input-label">难度</label>
-                            <select name="recipe_difficulty" class="input">
+                            <select name="recipe_difficulty" class="input !min-h-[40px] text-xs font-bold">
                                 <option value="">—</option>
                                 <option value="简单">简单</option>
                                 <option value="中等">中等</option>
@@ -110,94 +134,119 @@
                             </select>
                         </div>
                     </div>
-                    <div>
-                        <label class="input-label">小提示</label>
-                        <textarea name="recipe_tips" class="input h-16 resize-none" placeholder="每行一个小提示"></textarea>
-                    </div>
                 </div>
             </details>
-            <button type="submit" class="btn btn-primary w-full mt-2">确认收录</button>
+            <button type="submit" class="btn btn-primary w-full py-3.5 text-sm font-black rounded-2xl shadow-lg shadow-orange-500/25">确认收录</button>
         </form>
     </div>
 </div>
 
+<!-- Responsive Dish Cards Grid (1 col on mobile, 2 cols on tablet/desktop) -->
 {% if dishes %}
 <div id="dish-list-container" 
      hx-get="/" 
      hx-trigger="dishUpdated from:body" 
      hx-select="#dish-list-container" 
      hx-swap="outerHTML"
-     class="grid grid-cols-1 gap-3">
+     class="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
     {% for dish in dishes %}
-    <div class="card p-3 flex items-center gap-4 slide-in group cursor-pointer hover:bg-stone-50 transition-colors"
-         style="animation-delay:{{ loop.index0 * 40 }}ms"
+    <div class="card p-3 sm:p-3.5 bg-white border border-stone-200/80 shadow-sm flex flex-row items-center gap-3 sm:gap-3.5 slide-in cursor-pointer group hover:border-orange-200 transition-all"
+         style="animation-delay:{{ loop.index0 * 30 }}ms"
          onclick="loadDishDetail({{ dish.id }})"
          data-dish-name="{{ dish.name }}">
 
-        <div class="w-16 h-16 rounded-2xl overflow-hidden shrink-0 bg-stone-100 border border-stone-100">
+        <!-- Left Thumbnail (Strictly 90x90px square on all devices) -->
+        <div class="relative shrink-0 rounded-2xl overflow-hidden bg-stone-100 border border-stone-100 shadow-2xs"
+             style="width: 90px; height: 90px; min-width: 90px; min-height: 90px;">
             {% if dish.image_url %}
-            <img src="{{ dish.image_url }}" alt="{{ dish.name }}" class="w-full h-full object-cover">
+            <img src="{{ dish.image_url }}" alt="{{ dish.name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">
             {% else %}
-            <div class="w-full h-full flex flex-col items-center justify-center gap-0.5">
-                <i class="fas fa-utensils text-stone-300"></i>
-                <span class="text-[8px] text-stone-300 font-bold">缺一张美照</span>
+            <div class="w-full h-full flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-orange-50/60 to-stone-100">
+                <div class="w-7 h-7 rounded-xl bg-white/90 flex items-center justify-center text-stone-300 shadow-2xs">
+                    <i class="fas fa-utensils text-xs"></i>
+                </div>
+                <span class="text-[9px] text-stone-400 font-bold">待拍美照</span>
             </div>
+            {% endif %}
+
+            <!-- Category Badge on Thumbnail -->
+            {% if dish.category %}
+            <span class="absolute bottom-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-stone-900/75 text-white backdrop-blur-xs">
+                {{ dish.category }}
+            </span>
+            {% endif %}
+
+            <!-- Cook Time on Thumbnail -->
+            {% if dish.recipe and dish.recipe.content.cook_time %}
+            <span class="absolute top-1 right-1 text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-stone-900/75 text-white backdrop-blur-xs">
+                <i class="far fa-clock text-[7px]"></i> {{ dish.recipe.content.cook_time }}
+            </span>
             {% endif %}
         </div>
 
-        <div class="flex-1 min-w-0 py-0.5">
-            <div class="flex items-center justify-between mb-0.5">
-                <div class="flex items-center gap-1.5 min-w-0">
-                    <h3 class="font-black text-stone-800 truncate">{{ dish.name }}</h3>
-                    {% if dish.category %}
-                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-500 shrink-0">{{ dish.category }}</span>
+        <!-- Right Content & Actions -->
+        <div class="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+            <div>
+                <!-- Title & Difficulty -->
+                <div class="flex items-center justify-between gap-1.5 mb-0.5">
+                    <h3 class="font-black text-stone-800 text-sm sm:text-base leading-snug truncate group-hover:text-orange-600 transition-colors">
+                        {{ dish.name }}
+                    </h3>
+                    {% if dish.recipe and dish.recipe.content.difficulty %}
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0" style="color:var(--brand);background:var(--brand-soft)">
+                        {{ dish.recipe.content.difficulty }}
+                    </span>
                     {% endif %}
                 </div>
-                <div class="flex gap-1">
-                    {% if dish.recipe %}
-                    {% if dish.recipe.content.cook_time %}
-                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">
-                        <i class="far fa-clock mr-0.5"></i>{{ dish.recipe.content.cook_time }}
-                    </span>
-                    {% endif %}
-                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style="color:var(--brand);background:var(--brand-bg)">
-                        {{ dish.recipe.content.difficulty or '—' }}
-                    </span>
-                    {% endif %}
+
+                <!-- Description (1 line on mobile) -->
+                <p class="text-xs text-stone-400 line-clamp-1 leading-relaxed">
+                    {{ dish.description or '大厨拿手私房美味，鲜香适口，快来尝尝吧~' }}
+                </p>
+            </div>
+
+            <!-- Action Controls Footer -->
+            <div class="flex items-center justify-between pt-2 mt-2 border-t border-stone-100">
+                <button
+                    type="button"
+                    onclick="event.stopPropagation(); loadRecipe({{ dish.id }})"
+                    class="btn btn-ghost !min-h-[1.75rem] !h-7 !px-2.5 text-[11px] font-bold text-stone-500 hover:text-stone-800 rounded-xl bg-stone-100/80 hover:bg-stone-200/60 whitespace-nowrap flex items-center gap-1"
+                    title="查看菜谱">
+                    <i class="fas fa-book-open text-orange-500 text-[10px]"></i>
+                    <span>菜谱</span>
+                </button>
+
+                <!-- Direct Stepper / Add Button into Cart -->
+                <div data-dish-stepper="{{ dish.id }}" onclick="event.stopPropagation()">
+                    <button type="button" class="cart-add-btn btn btn-primary !min-h-[1.75rem] !h-7 !px-3 text-xs font-black rounded-xl shadow-sm shadow-orange-500/20 flex items-center gap-1 whitespace-nowrap"
+                            onclick="Cart.add({{ dish.id }}, '{{ dish.name }}', '{{ dish.category or '' }}', '{{ dish.image_url or '' }}')">
+                        <i class="fas fa-plus text-[10px]"></i> 点这道
+                    </button>
+                    <div class="cart-stepper stepper" style="display: none;">
+                        <button type="button" class="stepper-btn !w-7 !h-7" onclick="Cart.sub({{ dish.id }})">
+                            <i class="fas fa-minus text-[9px]"></i>
+                        </button>
+                        <span class="stepper-value cart-count-val text-xs font-black px-2">0</span>
+                        <button type="button" class="stepper-btn !w-7 !h-7" onclick="Cart.add({{ dish.id }}, '{{ dish.name }}', '{{ dish.category or '' }}', '{{ dish.image_url or '' }}')">
+                            <i class="fas fa-plus text-[9px]"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
-            {% if dish.description %}
-            <p class="text-[11px] text-stone-400 truncate">{{ dish.description }}</p>
-            {% endif %}
-        </div>
-
-        <div class="flex gap-1 items-center">
-            <a
-                href="/order?dish_id={{ dish.id }}"
-                onclick="event.stopPropagation()"
-                class="btn btn-ghost !w-9 !h-9 !min-h-0 !p-0 rounded-xl flex items-center justify-center"
-                title="我要吃"
-            >
-                <i class="fas fa-utensils text-xs text-stone-300 group-hover:text-orange-500 transition-colors"></i>
-            </a>
-            <button
-                onclick="event.stopPropagation(); loadRecipe({{ dish.id }})"
-                class="btn btn-ghost btn-icon !w-9 !h-9 !min-h-0 rounded-xl"
-                title="查看菜谱"
-            >
-                <i class="fas fa-book-open text-xs text-stone-300 group-hover:text-orange-400 transition-colors"></i>
-            </button>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
 <div class="card p-16 flex flex-col items-center justify-center text-center">
-    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-bg);color:var(--brand)">
+    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-soft);color:var(--brand)">
         <i class="fas fa-utensils text-2xl"></i>
     </div>
-    <p class="font-bold text-stone-600 text-lg mb-1">还没有菜品</p>
-    <p class="text-sm text-stone-400">点击上方「添加私房菜」收录第一道菜吧！</p>
+    <p class="font-bold text-stone-700 text-lg mb-1">未找到匹配菜品</p>
+    <p class="text-xs text-stone-400 mb-4">可以换个关键词搜索，或者点击收录第一道美味！</p>
+    <button onclick="openAddDishModal()" class="btn btn-primary !h-10 !px-5 text-xs font-bold rounded-xl">
+        <i class="fas fa-plus mr-1.5"></i> 收录新菜品
+    </button>
 </div>
 {% endif %}
 
@@ -206,22 +255,37 @@ function openAddDishModal() {
     openModal('add-dish-modal');
 }
 
+// Time-based warm greeting
+(function() {
+    const hour = new Date().getHours();
+    let greeting = '今日菜单';
+    if (hour >= 5 && hour < 11) greeting = '早安，今日食单';
+    else if (hour >= 11 && hour < 14) greeting = '午餐吃点好的';
+    else if (hour >= 14 && hour < 18) greeting = '午后好时光';
+    else if (hour >= 18 && hour < 22) greeting = '暮色渐晚，晚餐时光';
+    else greeting = '深夜小食堂';
+    const el = document.getElementById('time-greeting');
+    if (el) el.textContent = greeting;
+})();
+
 // Search skeleton toggle
-document.getElementById('dish-search').addEventListener('htmx:beforeRequest', function() {
-    document.getElementById('search-skeleton').classList.remove('hidden');
+document.getElementById('dish-search')?.addEventListener('htmx:beforeRequest', function() {
+    document.getElementById('search-skeleton')?.classList.remove('hidden');
 });
-document.getElementById('dish-search').addEventListener('htmx:afterSwap', function() {
-    document.getElementById('search-skeleton').classList.add('hidden');
+document.getElementById('dish-search')?.addEventListener('htmx:afterSwap', function() {
+    document.getElementById('search-skeleton')?.classList.add('hidden');
+    if (typeof Cart !== 'undefined') Cart.render();
 });
-document.getElementById('dish-search').addEventListener('htmx:sendError', function() {
-    document.getElementById('search-skeleton').classList.add('hidden');
+document.getElementById('dish-search')?.addEventListener('htmx:sendError', function() {
+    document.getElementById('search-skeleton')?.classList.add('hidden');
 });
 
 // Image upload preview
-document.getElementById('dish-image-input').addEventListener('change', function() {
-    var preview = document.getElementById('dish-image-preview');
+document.getElementById('dish-image-input')?.addEventListener('change', function() {
+    const preview = document.getElementById('dish-image-preview');
+    if (!preview) return;
     if (this.files && this.files[0]) {
-        var reader = new FileReader();
+        const reader = new FileReader();
         reader.onload = function(e) {
             preview.src = e.target.result;
             preview.classList.remove('hidden');
@@ -233,11 +297,17 @@ document.getElementById('dish-image-input').addEventListener('change', function(
     }
 });
 
+// Auto open edit modal if ?edit=... present
 (function() {
-    var p = new URLSearchParams(window.location.search);
+    const p = new URLSearchParams(window.location.search);
     if (p.has('edit')) {
         loadDishDetail(p.get('edit'));
     }
 })();
+
+// Re-render cart counter on DOM load or HTMX swap
+document.body.addEventListener('htmx:afterSwap', function() {
+    if (typeof Cart !== 'undefined') Cart.render();
+});
 </script>
 {% endblock %}

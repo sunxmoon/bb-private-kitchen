@@ -14,9 +14,14 @@ def test_history_page_with_data(client, db):
     user = crud.get_user_by_name(db, "testuser")
     dish = crud.create_dish(db, schemas.DishCreate(name="Hist Dish", created_by=user.id))
     order = crud.create_order(db, schemas.OrderCreate(created_by=user.id))
-    crud.add_order_item(db, schemas.OrderItemCreate(
-        order_id=order.id, dish_id=dish.id, user_id=user.id,
-    ))
+    crud.add_order_item(
+        db,
+        schemas.OrderItemCreate(
+            order_id=order.id,
+            dish_id=dish.id,
+            user_id=user.id,
+        ),
+    )
     response = client.get("/history")
     assert response.status_code == 200
 

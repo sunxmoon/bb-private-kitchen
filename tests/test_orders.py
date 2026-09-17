@@ -51,9 +51,14 @@ def test_complete_item(client, db):
     user = crud.get_user_by_name(db, "testuser")
     dish = crud.create_dish(db, schemas.DishCreate(name="Test Dish", created_by=user.id))
     order = crud.get_or_create_current_order(db, user.id)
-    item = crud.add_order_item(db, schemas.OrderItemCreate(
-        order_id=order.id, dish_id=dish.id, user_id=user.id,
-    ))
+    item = crud.add_order_item(
+        db,
+        schemas.OrderItemCreate(
+            order_id=order.id,
+            dish_id=dish.id,
+            user_id=user.id,
+        ),
+    )
     token = _csrf(client)
     response = client.post(f"/complete-item/{item.id}", data={"csrf_token": token}, follow_redirects=False)
     assert response.status_code == 303
@@ -66,9 +71,14 @@ def test_delay_item(client, db):
     user = crud.get_user_by_name(db, "testuser")
     dish = crud.create_dish(db, schemas.DishCreate(name="Test Dish", created_by=user.id))
     order = crud.get_or_create_current_order(db, user.id)
-    item = crud.add_order_item(db, schemas.OrderItemCreate(
-        order_id=order.id, dish_id=dish.id, user_id=user.id,
-    ))
+    item = crud.add_order_item(
+        db,
+        schemas.OrderItemCreate(
+            order_id=order.id,
+            dish_id=dish.id,
+            user_id=user.id,
+        ),
+    )
     token = _csrf(client)
     response = client.post(f"/delay-item/{item.id}", data={"csrf_token": token}, follow_redirects=False)
     assert response.status_code == 303
@@ -79,9 +89,14 @@ def test_delete_item(client, db):
     user = crud.get_user_by_name(db, "testuser")
     dish = crud.create_dish(db, schemas.DishCreate(name="Test Dish", created_by=user.id))
     order = crud.get_or_create_current_order(db, user.id)
-    item = crud.add_order_item(db, schemas.OrderItemCreate(
-        order_id=order.id, dish_id=dish.id, user_id=user.id,
-    ))
+    item = crud.add_order_item(
+        db,
+        schemas.OrderItemCreate(
+            order_id=order.id,
+            dish_id=dish.id,
+            user_id=user.id,
+        ),
+    )
     token = _csrf(client)
     response = client.post(f"/delete-item/{item.id}", data={"csrf_token": token}, follow_redirects=False)
     assert response.status_code == 303
@@ -104,9 +119,14 @@ def test_update_item(client, db):
     user = crud.get_user_by_name(db, "testuser")
     dish = crud.create_dish(db, schemas.DishCreate(name="Test Dish", created_by=user.id))
     order = crud.get_or_create_current_order(db, user.id)
-    item = crud.add_order_item(db, schemas.OrderItemCreate(
-        order_id=order.id, dish_id=dish.id, user_id=user.id,
-    ))
+    item = crud.add_order_item(
+        db,
+        schemas.OrderItemCreate(
+            order_id=order.id,
+            dish_id=dish.id,
+            user_id=user.id,
+        ),
+    )
     token = _csrf(client)
     response = client.post(
         f"/update-item/{item.id}",
@@ -116,7 +136,7 @@ def test_update_item(client, db):
     assert response.status_code == 303
 
 
-def test_update_nonexistent_item_returns_404(client, db):
+def test_update_nonexistent_item_redirects(client, db):
     _login(client, db)
     token = _csrf(client)
     response = client.post(
@@ -125,24 +145,28 @@ def test_update_nonexistent_item_returns_404(client, db):
         follow_redirects=False,
     )
     assert response.status_code == 303
+    assert "/my-orders" in response.headers["location"]
 
 
-def test_complete_nonexistent_item_returns_404(client, db):
+def test_complete_nonexistent_item_redirects(client, db):
     _login(client, db)
     token = _csrf(client)
     response = client.post("/complete-item/99999", data={"csrf_token": token}, follow_redirects=False)
-    assert response.status_code == 404
+    assert response.status_code == 303
+    assert "/my-orders" in response.headers["location"]
 
 
-def test_delete_nonexistent_item_returns_404(client, db):
+def test_delete_nonexistent_item_redirects(client, db):
     _login(client, db)
     token = _csrf(client)
     response = client.post("/delete-item/99999", data={"csrf_token": token}, follow_redirects=False)
-    assert response.status_code == 404
+    assert response.status_code == 303
+    assert "/my-orders" in response.headers["location"]
 
 
-def test_delete_nonexistent_order_returns_404(client, db):
+def test_delete_nonexistent_order_redirects(client, db):
     _login(client, db)
     token = _csrf(client)
     response = client.post("/delete-order/99999", data={"csrf_token": token}, follow_redirects=False)
-    assert response.status_code == 404
+    assert response.status_code == 303
+    assert "/my-orders" in response.headers["location"]

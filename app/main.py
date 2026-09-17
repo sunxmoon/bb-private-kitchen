@@ -86,6 +86,7 @@ async def lifespan(app: FastAPI):
         await asyncio.to_thread(_run_migrations)
         await asyncio.to_thread(_seed_database)
         from .ai_client import ai_client
+
         available = await ai_client.check_available()
         if available:
             logger.info("AGY CLI is available")
@@ -102,9 +103,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/health")
 async def health_check():
     from sqlalchemy import text
+
     db_ok = False
     try:
         from .database import SessionLocal
+
         db = SessionLocal()
         try:
             db.execute(text("SELECT 1"))
@@ -116,15 +119,18 @@ async def health_check():
     ai_ok = False
     try:
         from .ai_client import ai_client
+
         ai_ok = await ai_client.check_available()
     except Exception:
         pass
     status_code = 200 if db_ok else 503
     from fastapi.responses import JSONResponse
+
     return JSONResponse(
         content={"status": "healthy" if db_ok else "degraded", "db": db_ok, "ai": ai_ok},
         status_code=status_code,
     )
+
 
 app.include_router(auth.router)
 app.include_router(dishes.router)
@@ -144,10 +150,21 @@ async def set_csrf_cookie(request: Request, call_next):
     if not request.cookies.get(CSRF_COOKIE_NAME):
         token = getattr(request.state, "csrf_token", generate_csrf_token())
         response.set_cookie(
-            key=CSRF_COOKIE_NAME, value=token,
-            httponly=True, samesite="lax",
-            max_age=86400, secure=request.url.scheme == "https",
+            key=CSRF_COOKIE_NAME,
+            value=token,
+            httponly=True,
+            samesite="lax",
+            max_age=86400,
+            secure=request.url.scheme == "https",
         )
+    return response
+
+
+@app.middleware("http")
+async def clear_flash_cookie(request: Request, call_next):
+    response = await call_next(request)
+    if "flash_msg" in request.cookies and not (300 <= response.status_code < 400):
+        response.delete_cookie("flash_msg")
     return response
 
 
@@ -188,6 +205,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def global_exception_handler(request: Request, exc: Exception):
     import sys
     import traceback
+
     traceback.print_exception(type(exc), exc, exc.__traceback__, file=sys.stderr)
     print(f"=== GLOBAL ERROR: {exc} ===", file=sys.stderr, flush=True)
     logger.error(f"Global error: {exc}", exc_info=True)

@@ -13,12 +13,12 @@
 <!-- Users List Tab -->
 <div id="content-users-list" class="space-y-3">
     <div class="flex items-center justify-between">
-        <h3 class="text-sm font-bold text-stone-600">家庭成员</h3>
-        <button onclick="openModal('add-user-modal')" class="btn btn-primary !min-h-[2rem] !px-3 text-xs">
-            <i class="fas fa-plus text-xs"></i> 添加
+        <h3 class="text-sm font-black text-stone-700">家庭成员列表</h3>
+        <button onclick="openModal('add-user-modal')" class="btn btn-primary !min-h-[2.25rem] !h-9 !px-3.5 text-xs font-bold rounded-xl shadow-md shadow-orange-500/20">
+            <i class="fas fa-plus text-xs mr-1"></i> 添加新成员
         </button>
     </div>
-    <div class="grid grid-cols-1 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {% for user in users %}
         <div class="card p-4 flex items-center justify-between slide-in" style="animation-delay:{{ loop.index0 * 40 }}ms">
             <div class="flex items-center gap-3">

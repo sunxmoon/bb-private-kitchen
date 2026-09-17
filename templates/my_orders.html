@@ -1,156 +1,464 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex items-center justify-between">
-    <h2 class="text-xl font-black text-stone-800">当前订单</h2>
-    {% if current_order %}
-    <div class="flex items-center gap-2">
-        <span class="text-[10px] font-bold px-2 py-1 rounded-full" style="color:var(--brand);background:var(--brand-bg)">#{{ current_order.id }}</span>
-        <button onclick="if(confirm('确定清空当前订单？')) document.getElementById('delete-order-form').submit()" class="btn btn-ghost btn-icon !min-h-[2rem] text-red-400" aria-label="清空订单">
-            <i class="fas fa-trash-alt text-xs"></i>
-        </button>
-    </div>
-    {% endif %}
-</div>
+<div id="orders-main-content" class="space-y-5">
+    <!-- Top Header & Order Actions -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-black px-2.5 py-0.5 rounded-full" style="background:var(--brand-soft);color:var(--brand)">
+                    <i class="fas fa-clipboard-list text-[10px] mr-1"></i>实时订单
+                </span>
+                {% if current_order %}
+                <span class="text-[11px] font-bold text-stone-400">单号 #{{ current_order.id }}</span>
+                {% endif %}
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-stone-800 tracking-tight mt-1">今日餐单动态</h2>
+            <p class="text-xs text-stone-400 mt-0.5">大厨与家人的美味沟通桥梁 · 实时同步</p>
+        </div>
 
-{% if current_order and current_order.items %}
-<div class="space-y-3" hx-get="/my-orders" hx-trigger="every 10s" hx-select=".space-y-3" hx-swap="outerHTML">
-    {% for item in current_order.items %}
-    <div class="card overflow-hidden slide-in" style="animation-delay:{{ loop.index0 * 60 }}ms">
-        <div class="p-5">
-            <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center flex-wrap gap-1.5">
-                        <h3 class="font-bold text-stone-800 {% if item.status == 'completed' %}line-through opacity-50{% endif %}">
-                            {{ item.dish.name if item.dish else '已删除的菜品' }}
-                        </h3>
-                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap" style="color:var(--brand);background:var(--brand-bg)">{{ item.user.name if item.user else '?' }}</span>
-                        {% if item.status == 'completed' %}
-                        <span class="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">已完成</span>
-                        {% elif item.status == 'delayed' %}
-                        <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">已延期</span>
+        {% if current_order and current_order.items %}
+        <div class="flex items-center gap-2">
+            <!-- View Switcher Tabs -->
+            <div class="inline-flex p-1 bg-stone-100 rounded-2xl border border-stone-200/60 select-none">
+                <button type="button" onclick="switchOrderView('timeline')" id="view-btn-timeline"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all bg-white text-stone-800 shadow-sm">
+                    <i class="fas fa-list-ul mr-1 text-[10px]"></i>清单进度
+                </button>
+                <button type="button" onclick="switchOrderView('kanban')" id="view-btn-kanban"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all text-stone-500 hover:text-stone-800">
+                    <i class="fas fa-columns mr-1 text-[10px]"></i>大厨看板
+                </button>
+            </div>
+
+            {% if current_user.role == 'admin' %}
+            <button onclick="if(confirm('确定清空当前全部订单？')) document.getElementById('delete-order-form').submit()" 
+                    class="btn btn-ghost btn-icon !w-9 !h-9 !min-h-0 text-stone-400 hover:text-red-500 rounded-xl" title="清空订单">
+                <i class="fas fa-trash-alt text-xs"></i>
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    {% if current_order and current_order.items %}
+    {% set total_count = current_order.items|length %}
+    {% set completed_count = current_order.items | selectattr('status', 'equalto', 'completed') | list | length %}
+    {% set pending_count = total_count - completed_count %}
+    {% set percent = ((completed_count / total_count) * 100) | round | int if total_count > 0 else 0 %}
+
+    <!-- Cooking Progress Summary Card -->
+    <div class="card p-5 bg-white border border-stone-200/80 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-base font-black shadow-md shrink-0" 
+                     style="background: linear-gradient(135deg, {% if percent == 100 %}#10b981, #059669{% else %}var(--brand), var(--brand-dark){% endif %});">
+                    <i class="fas {% if percent == 100 %}fa-check-double{% else %}fa-fire-burner{% endif %}"></i>
+                </div>
+                <div>
+                    <h3 class="font-black text-sm text-stone-800">
+                        {% if percent == 100 %}
+                        🎉 全部佳肴已热气腾腾出锅！
+                        {% elif completed_count > 0 %}
+                        👨‍🍳 大厨正在烹饪中（已出锅 {{ completed_count }}/{{ total_count }} 道）
+                        {% else %}
+                        📝 已收到点餐，大厨准备备菜中...
                         {% endif %}
-                    </div>
-                    {% if item.taste or item.preferred_time or item.location or item.ingredients or item.remarks %}
-                    <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1.5">
-                        {% if item.taste %}<p class="text-xs text-stone-400 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.taste }}</p>{% endif %}
-                        {% if item.preferred_time %}<p class="text-xs text-stone-400 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.preferred_time }}</p>{% endif %}
-                        {% if item.location %}<p class="text-xs text-stone-400 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.location }}</p>{% endif %}
-                        {% if item.ingredients %}<p class="text-xs text-stone-400 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.ingredients }}</p>{% endif %}
-                        {% if item.remarks %}<p class="text-xs text-stone-400 col-span-2 truncate"><span class="text-orange-300 mr-1">●</span>{{ item.remarks }}</p>{% endif %}
-                    </div>
-                    {% endif %}
+                    </h3>
+                    <p class="text-[11px] text-stone-400 mt-0.5">
+                        共 {{ total_count }} 道 · {{ completed_count }} 道已完成 · {{ pending_count }} 道待制作
+                    </p>
                 </div>
             </div>
-            <div class="flex items-center gap-2 mt-3 pt-3 border-t border-stone-100">
+            <span class="text-sm font-black px-2.5 py-1 rounded-xl {% if percent == 100 %}bg-green-50 text-green-600{% else %}bg-orange-50 text-orange-600{% endif %}">
+                {{ percent }}%
+            </span>
+        </div>
+
+        <!-- Visual Progress Bar -->
+        <div class="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden p-0.5">
+            <div class="h-full rounded-full transition-all duration-500 ease-out" 
+                 style="width: {{ percent }}%; background: linear-gradient(90deg, var(--brand), {% if percent == 100 %}#10b981{% else %}var(--brand-light){% endif %});">
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 1: Timeline Progress View (Default) -->
+    <div id="order-view-timeline" class="space-y-3.5">
+        {% for item in current_order.items %}
+        <div class="card p-4 sm:p-5 bg-white border border-stone-200/80 shadow-sm transition-all hover:border-orange-200 slide-in" 
+             style="animation-delay:{{ loop.index0 * 40 }}ms">
+            
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3.5 flex-1 min-w-0">
+                    <!-- Dish Thumbnail -->
+                    <div class="w-14 h-14 rounded-2xl overflow-hidden bg-stone-100 shrink-0 border border-stone-100 mt-0.5">
+                        {% if item.dish and item.dish.image_url %}
+                        <img src="{{ item.dish.image_url }}" alt="{{ item.dish.name }}" class="w-full h-full object-cover">
+                        {% else %}
+                        <div class="w-full h-full flex items-center justify-center text-stone-300">
+                            <i class="fas fa-utensils text-sm"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center flex-wrap gap-2 mb-1">
+                            <h4 class="font-black text-base text-stone-800 {% if item.status == 'completed' %}line-through opacity-50{% endif %}">
+                                {{ item.dish.name if item.dish else '已删除的菜品' }}
+                            </h4>
+                            <span class="text-[10px] font-black px-2 py-0.5 rounded-lg text-white shrink-0 shadow-sm" 
+                                  style="background: linear-gradient(135deg, {{ item.user.theme_color or 'var(--brand)' }}, {{ item.user.theme_color or 'var(--brand-dark)' }});">
+                                {{ item.user.name if item.user else '?' }}
+                            </span>
+                            
+                            {% if item.status == 'completed' %}
+                            <span class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg flex items-center gap-1 border border-green-200/60">
+                                <i class="fas fa-check-circle text-[9px]"></i>已出锅
+                            </span>
+                            {% elif item.status == 'delayed' %}
+                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg flex items-center gap-1 border border-blue-200/60">
+                                <i class="fas fa-clock text-[9px]"></i>延期慢炖
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg flex items-center gap-1 border border-amber-200/60">
+                                <i class="fas fa-fire-burner text-[9px]"></i>待制作
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Taste / Notes Chips -->
+                        {% if item.taste or item.preferred_time or item.location or item.ingredients or item.remarks %}
+                        <div class="flex flex-wrap gap-1.5 mt-2">
+                            {% if item.taste %}
+                            <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-stone-100 text-stone-600">
+                                🌶️ {{ item.taste }}
+                            </span>
+                            {% endif %}
+                            {% if item.preferred_time %}
+                            <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-stone-100 text-stone-600">
+                                ⏱️ {{ item.preferred_time }}
+                            </span>
+                            {% endif %}
+                            {% if item.location %}
+                            <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-stone-100 text-stone-600">
+                                📍 {{ item.location }}
+                            </span>
+                            {% endif %}
+                            {% if item.ingredients %}
+                            <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-stone-100 text-stone-600">
+                                🥚 {{ item.ingredients }}
+                            </span>
+                            {% endif %}
+                            {% if item.remarks %}
+                            <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-100">
+                                💬 {{ item.remarks }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Controls Bar -->
+            <div class="flex items-center gap-2 mt-3.5 pt-3 border-t border-stone-100 flex-wrap">
                 {% if item.status != 'completed' %}
-                <form action="/complete-item/{{ item.id }}" method="POST">
+                <form action="/complete-item/{{ item.id }}" method="POST" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-colors">
-                        <i class="fas fa-check mr-1"></i>完成
+                    <button type="submit" class="btn !min-h-[2rem] !h-8 !px-3 text-xs font-bold bg-green-500 hover:bg-green-600 text-white rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                        <i class="fas fa-check text-[10px]"></i>做好了
                     </button>
                 </form>
                 {% else %}
-                <form action="/update-item/{{ item.id }}" method="POST">
+                <form action="/update-item/{{ item.id }}" method="POST" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="status" value="pending">
-                    <button type="submit" class="btn !min-h-[2rem] !px-3 text-xs font-bold rounded-xl transition-colors" style="color:var(--brand);background:var(--brand-bg)">
-                        <i class="fas fa-undo mr-1"></i>撤回
+                    <button type="submit" class="btn !min-h-[2rem] !h-8 !px-3 text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors">
+                        <i class="fas fa-undo mr-1 text-[10px]"></i>撤回重做
                     </button>
                 </form>
-                <a href="/order?dish_id={{ item.dish_id }}" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-xl transition-colors">
-                    <i class="fas fa-redo mr-1"></i>再来一份
+                <a href="/order?dish_id={{ item.dish_id }}" class="btn !min-h-[2rem] !h-8 !px-3 text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl transition-colors">
+                    <i class="fas fa-redo mr-1 text-[10px]"></i>再来一份
                 </a>
+                <!-- Rating Stars -->
                 <form action="/rate-item/{{ item.id }}" method="POST" class="flex items-center gap-1 ml-auto">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <span class="text-[10px] text-stone-400 font-bold mr-1">评味:</span>
                     {% for star in range(1, 6) %}
-                    <button type="submit" name="rating" value="{{ star }}" class="text-xs transition-colors {% if item.rating and star <= item.rating %}text-yellow-400{% else %}text-stone-300 hover:text-yellow-400{% endif %}" title="{{ star }}星">
+                    <button type="submit" name="rating" value="{{ star }}" class="text-sm transition-colors {% if item.rating and star <= item.rating %}text-yellow-400{% else %}text-stone-300 hover:text-yellow-400{% endif %}" title="{{ star }}星">
                         <i class="fas fa-star"></i>
                     </button>
                     {% endfor %}
                 </form>
                 {% endif %}
-                {% if item.status != 'delayed' %}
-                <form action="/delay-item/{{ item.id }}" method="POST">
+
+                {% if item.status != 'delayed' and item.status != 'completed' %}
+                <form action="/delay-item/{{ item.id }}" method="POST" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors">
-                        <i class="fas fa-clock mr-1"></i>延期
+                    <button type="submit" class="btn !min-h-[2rem] !h-8 !px-3 text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors">
+                        <i class="fas fa-clock mr-1 text-[10px]"></i>延期
                     </button>
                 </form>
                 {% endif %}
-                <form action="/delete-item/{{ item.id }}" method="POST" onsubmit="return confirm('确定取消？')">
+
+                <form action="/delete-item/{{ item.id }}" method="POST" onsubmit="return confirm('确定从本餐单中取消该菜品？')" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-colors">
-                        <i class="fas fa-times mr-1"></i>取消
+                    <button type="submit" class="btn !min-h-[2rem] !h-8 !px-2.5 text-xs font-bold text-stone-400 hover:text-red-500 rounded-xl transition-colors" title="取消此项">
+                        <i class="fas fa-trash-alt text-[10px]"></i>
                     </button>
                 </form>
-                <button onclick="toggleDetails('details-{{ item.id }}')" class="btn !min-h-[2rem] !px-3 text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200 rounded-xl ml-auto transition-colors">
-                    <i class="fas fa-pen mr-1"></i>编辑
+
+                <button onclick="toggleDetails('details-{{ item.id }}')" class="btn !min-h-[2rem] !h-8 !px-2.5 text-xs font-bold text-stone-400 hover:text-stone-700 rounded-xl ml-auto transition-colors" title="编辑口味与备注">
+                    <i class="fas fa-pen text-[10px]"></i>
                 </button>
             </div>
-            <div id="details-{{ item.id }}" class="hidden mt-3 slide-in">
-                <form action="/update-item/{{ item.id }}" method="POST" class="space-y-4 pt-3 border-t border-stone-100">
+
+            <!-- Expandable Edit Form -->
+            <div id="details-{{ item.id }}" class="hidden mt-3 pt-3 border-t border-stone-100 slide-in">
+                <form action="/update-item/{{ item.id }}" method="POST" class="space-y-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="input-label">口味</label><input type="text" name="taste" value="{{ item.taste or '' }}" class="input"></div>
-                        <div><label class="input-label">时间</label><input type="text" name="preferred_time" value="{{ item.preferred_time or '' }}" class="input"></div>
-                        <div><label class="input-label">地点</label><input type="text" name="location" value="{{ item.location or '' }}" class="input"></div>
-                        <div><label class="input-label">食材</label><input type="text" name="ingredients" value="{{ item.ingredients or '' }}" class="input"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="input-label">口味</label><input type="text" name="taste" value="{{ item.taste or '' }}" class="input !min-h-[38px] text-xs"></div>
+                        <div><label class="input-label">时间</label><input type="text" name="preferred_time" value="{{ item.preferred_time or '' }}" class="input !min-h-[38px] text-xs"></div>
+                        <div><label class="input-label">地点</label><input type="text" name="location" value="{{ item.location or '' }}" class="input !min-h-[38px] text-xs"></div>
+                        <div><label class="input-label">加料</label><input type="text" name="ingredients" value="{{ item.ingredients or '' }}" class="input !min-h-[38px] text-xs"></div>
                     </div>
                     <div>
                         <label class="input-label">备注</label>
-                        <textarea name="remarks" class="input h-16 resize-none">{{ item.remarks or '' }}</textarea>
+                        <textarea name="remarks" class="input h-16 resize-none text-xs">{{ item.remarks or '' }}</textarea>
                     </div>
-                    <div>
-                        <label class="input-label">状态</label>
-                        <select name="status" class="input">
-                            <option value="pending" {% if item.status == 'pending' %}selected{% endif %}>待处理</option>
-                            <option value="completed" {% if item.status == 'completed' %}selected{% endif %}>已完成</option>
-                            <option value="delayed" {% if item.status == 'delayed' %}selected{% endif %}>已延期</option>
-                        </select>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1">
+                            <label class="input-label">状态</label>
+                            <select name="status" class="input !min-h-[38px] text-xs font-bold">
+                                <option value="pending" {% if item.status == 'pending' %}selected{% endif %}>待制作</option>
+                                <option value="delayed" {% if item.status == 'delayed' %}selected{% endif %}>延期中</option>
+                                <option value="completed" {% if item.status == 'completed' %}selected{% endif %}>已完成</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary !h-[38px] !px-5 text-xs self-end rounded-xl">保存</button>
                     </div>
-                    <button type="submit" class="btn btn-primary w-full">保存修改</button>
                 </form>
             </div>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
-</div>
 
-{% if current_order and current_order.items %}
-<div class="flex gap-3 pt-2">
-    <a href="/shopping-list" class="btn flex-1 py-3 text-base font-bold justify-center" style="color:var(--brand);background:var(--brand-bg)">
-        <i class="fas fa-shopping-basket mr-2"></i>购物清单
-    </a>
-    <form action="/complete-order" method="POST" class="flex-1">
+    <!-- VIEW 2: Chef Kanban Board (3 Swimlanes) -->
+    <div id="order-view-kanban" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Lane 1: 待制作 (Pending) -->
+        <div class="space-y-3">
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-amber-50/70 border border-amber-100">
+                <span class="text-xs font-black text-amber-800 flex items-center gap-1.5">
+                    <i class="fas fa-fire-burner text-amber-500"></i>待制作
+                </span>
+                <span class="text-xs font-black px-2 py-0.5 rounded-full bg-white text-amber-700 shadow-sm">
+                    {{ current_order.items | selectattr('status', 'equalto', 'pending') | list | length }}
+                </span>
+            </div>
+            <div class="space-y-3">
+                {% for item in current_order.items if item.status == 'pending' %}
+                <div class="card p-4 bg-white border border-stone-200/80 shadow-sm space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <h4 class="font-black text-stone-800 text-sm">{{ item.dish.name if item.dish else '已删除' }}</h4>
+                        <span class="text-[10px] font-black px-1.5 py-0.5 rounded-md text-white shrink-0"
+                              style="background: {{ item.user.theme_color or 'var(--brand)' }}">
+                            {{ item.user.name if item.user else '?' }}
+                        </span>
+                    </div>
+                    {% if item.taste or item.remarks %}
+                    <p class="text-[11px] text-stone-500 bg-stone-50 p-2 rounded-xl">
+                        {{ item.taste or '' }} {{ item.remarks or '' }}
+                    </p>
+                    {% endif %}
+                    <form action="/complete-item/{{ item.id }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-primary w-full !h-8 text-xs font-black rounded-xl">
+                            <i class="fas fa-check mr-1 text-[10px]"></i>一键完成
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-center text-xs text-stone-300 py-6">暂无待制作菜品</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Lane 2: 延期/慢炖 (Delayed) -->
+        <div class="space-y-3">
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-blue-50/70 border border-blue-100">
+                <span class="text-xs font-black text-blue-800 flex items-center gap-1.5">
+                    <i class="fas fa-clock text-blue-500"></i>慢炖/延期
+                </span>
+                <span class="text-xs font-black px-2 py-0.5 rounded-full bg-white text-blue-700 shadow-sm">
+                    {{ current_order.items | selectattr('status', 'equalto', 'delayed') | list | length }}
+                </span>
+            </div>
+            <div class="space-y-3">
+                {% for item in current_order.items if item.status == 'delayed' %}
+                <div class="card p-4 bg-white border border-stone-200/80 shadow-sm space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <h4 class="font-black text-stone-800 text-sm">{{ item.dish.name if item.dish else '已删除' }}</h4>
+                        <span class="text-[10px] font-black px-1.5 py-0.5 rounded-md text-white shrink-0"
+                              style="background: {{ item.user.theme_color or 'var(--brand)' }}">
+                            {{ item.user.name if item.user else '?' }}
+                        </span>
+                    </div>
+                    {% if item.taste or item.remarks %}
+                    <p class="text-[11px] text-stone-500 bg-stone-50 p-2 rounded-xl">
+                        {{ item.taste or '' }} {{ item.remarks or '' }}
+                    </p>
+                    {% endif %}
+                    <form action="/complete-item/{{ item.id }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-primary w-full !h-8 text-xs font-black rounded-xl">
+                            <i class="fas fa-check mr-1 text-[10px]"></i>一键完成
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-center text-xs text-stone-300 py-6">暂无延期菜品</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Lane 3: 已出锅 (Completed) -->
+        <div class="space-y-3">
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-green-50/70 border border-green-100">
+                <span class="text-xs font-black text-green-800 flex items-center gap-1.5">
+                    <i class="fas fa-check-double text-green-500"></i>已出锅
+                </span>
+                <span class="text-xs font-black px-2 py-0.5 rounded-full bg-white text-green-700 shadow-sm">
+                    {{ current_order.items | selectattr('status', 'equalto', 'completed') | list | length }}
+                </span>
+            </div>
+            <div class="space-y-3">
+                {% for item in current_order.items if item.status == 'completed' %}
+                <div class="card p-4 bg-white border border-stone-200/80 shadow-sm space-y-2 opacity-80">
+                    <div class="flex items-start justify-between gap-2">
+                        <h4 class="font-black text-stone-700 text-sm line-through">{{ item.dish.name if item.dish else '已删除' }}</h4>
+                        <span class="text-[10px] font-bold text-green-600">完成</span>
+                    </div>
+                    <form action="/update-item/{{ item.id }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="status" value="pending">
+                        <button type="submit" class="text-[11px] text-stone-400 hover:text-orange-500 font-bold">
+                            <i class="fas fa-undo mr-1"></i>重新制作
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-center text-xs text-stone-300 py-6">还没有菜品出锅</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Actions: Shopping List & Finish Meal -->
+    <div class="flex flex-col sm:flex-row gap-3 pt-3">
+        <a href="/shopping-list" class="btn btn-ghost flex-1 !h-12 text-sm font-black justify-center rounded-2xl border border-stone-200 bg-white hover:bg-stone-50">
+            <i class="fas fa-shopping-basket mr-2 text-orange-500"></i>查看配套采购清单
+        </a>
+        <form action="/complete-order" method="POST" class="flex-1">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn w-full !h-12 text-sm font-black rounded-2xl shadow-lg shadow-green-500/20 text-white"
+                    style="background: linear-gradient(135deg, #10b981, #059669);">
+                <i class="fas fa-check-circle mr-2"></i>全单已享用 · 归档订单
+            </button>
+        </form>
+    </div>
+
+    {% else %}
+    <!-- Empty Order State -->
+    <div class="card p-16 flex flex-col items-center justify-center text-center bg-white border border-stone-200/80">
+        <div class="w-16 h-16 rounded-3xl flex items-center justify-center mb-4" style="background:var(--brand-soft);color:var(--brand)">
+            <i class="fas fa-utensils text-2xl"></i>
+        </div>
+        <p class="font-black text-stone-800 text-lg mb-1">当前没有进行中的订单</p>
+        <p class="text-xs text-stone-400 mb-6">挑几道喜欢的私房菜，开启温暖的一餐吧！</p>
+        <a href="/" class="btn btn-primary !h-11 !px-6 text-sm font-black rounded-2xl shadow-lg shadow-orange-500/25">
+            <i class="fas fa-plus mr-1.5"></i> 去挑选菜品
+        </a>
+    </div>
+    {% endif %}
+
+    <form id="delete-order-form" action="/delete-order/{{ current_order.id if current_order else 0 }}" method="POST" class="hidden">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="btn w-full py-3 text-base font-black"
-                style="background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border-radius: var(--radius-xl);">
-            <i class="fas fa-check-circle mr-2"></i>下单完成
-        </button>
     </form>
 </div>
-{% endif %}
-{% else %}
-<div class="card p-16 flex flex-col items-center justify-center text-center">
-    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-bg);color:var(--brand)">
-        <i class="fas fa-utensils text-2xl"></i>
-    </div>
-    <p class="font-bold text-stone-600 text-lg mb-6">还没有人点菜</p>
-    <a href="/order" class="btn btn-primary">
-        <i class="fas fa-plus"></i> 去点餐
-    </a>
-</div>
-{% endif %}
-
-<form id="delete-order-form" action="/delete-order/{{ current_order.id if current_order else 0 }}" method="POST" class="hidden">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-</form>
 
 <script>
 function toggleDetails(id) {
-    var el = document.getElementById(id);
+    const el = document.getElementById(id);
     if (el) el.classList.toggle('hidden');
 }
+
+function switchOrderView(view) {
+    const timelineEl = document.getElementById('order-view-timeline');
+    const kanbanEl = document.getElementById('order-view-kanban');
+    const btnTimeline = document.getElementById('view-btn-timeline');
+    const btnKanban = document.getElementById('view-btn-kanban');
+
+    if (view === 'kanban') {
+        timelineEl?.classList.add('hidden');
+        kanbanEl?.classList.remove('hidden');
+        btnTimeline?.classList.remove('bg-white', 'text-stone-800', 'shadow-sm');
+        btnTimeline?.classList.add('text-stone-500');
+        btnKanban?.classList.add('bg-white', 'text-stone-800', 'shadow-sm');
+        btnKanban?.classList.remove('text-stone-500');
+        localStorage.setItem('bb_kitchen_order_view', 'kanban');
+    } else {
+        kanbanEl?.classList.add('hidden');
+        timelineEl?.classList.remove('hidden');
+        btnKanban?.classList.remove('bg-white', 'text-stone-800', 'shadow-sm');
+        btnKanban?.classList.add('text-stone-500');
+        btnTimeline?.classList.add('bg-white', 'text-stone-800', 'shadow-sm');
+        btnTimeline?.classList.remove('text-stone-500');
+        localStorage.setItem('bb_kitchen_order_view', 'timeline');
+    }
+}
+
+// Restore user view preference
+(function() {
+    const saved = localStorage.getItem('bb_kitchen_order_view');
+    if (saved === 'kanban') {
+        switchOrderView('kanban');
+    }
+})();
+
+// Real-time SSE listening without white screen flicker!
+let sseActive = false;
+function setupSSE() {
+    const es = new EventSource('/orders/stream');
+    es.onopen = () => { sseActive = true; };
+    es.onmessage = (e) => {
+        if (e.data === 'update') {
+            // Smooth partial DOM update via HTMX, zero screen flicker!
+            if (typeof htmx !== 'undefined') {
+                htmx.ajax('GET', '/my-orders', {
+                    target: '#orders-main-content',
+                    select: '#orders-main-content',
+                    swap: 'outerHTML'
+                });
+            } else {
+                window.location.reload();
+            }
+        }
+    };
+    es.onerror = () => { sseActive = false; };
+}
+setupSSE();
+
+// Fallback background polling if SSE drops
+setInterval(() => {
+    if (!sseActive && typeof htmx !== 'undefined') {
+        htmx.ajax('GET', '/my-orders', {
+            target: '#orders-main-content',
+            select: '#orders-main-content',
+            swap: 'outerHTML'
+        });
+    }
+}, 10000);
 </script>
 {% endblock %}

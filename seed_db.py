@@ -1,6 +1,7 @@
 """Seed database with initial users. Run after Alembic migrations."""
-from app.database import SessionLocal
+
 from app import models, security
+from app.database import SessionLocal
 
 
 def seed():

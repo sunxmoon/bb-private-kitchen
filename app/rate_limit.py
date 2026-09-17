@@ -44,9 +44,6 @@ async def login_rate_limit(request: Request):
 
 
 def _purge_stale(now: float):
-    stale = [
-        ip for ip, records in _attempts.items()
-        if not [t for t in records if now - t < _WINDOW]
-    ]
+    stale = [ip for ip, records in _attempts.items() if not [t for t in records if now - t < _WINDOW]]
     for ip in stale:
         del _attempts[ip]

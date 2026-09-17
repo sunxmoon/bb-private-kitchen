@@ -1,114 +1,183 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex items-center justify-between">
-    <h2 class="text-xl font-black text-stone-800">食光足迹</h2>
-    <div class="flex items-center gap-1">
-        <a href="/history?view=list" class="text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all {% if current_view == 'list' %}text-white shadow-sm{% else %}text-stone-400 bg-stone-50 hover:bg-stone-100{% endif %}" {% if current_view == 'list' %}style="background:var(--brand)"{% endif %}>列表</a>
-        <a href="/history?view=timeline" class="text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all {% if current_view == 'timeline' %}text-white shadow-sm{% else %}text-stone-400 bg-stone-50 hover:bg-stone-100{% endif %}" {% if current_view == 'timeline' %}style="background:var(--brand)"{% endif %}>时间轴</a>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+    <div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-black px-2.5 py-0.5 rounded-full" style="background:var(--brand-soft);color:var(--brand)">
+                <i class="fas fa-history text-[10px] mr-1"></i>温馨回忆
+            </span>
+        </div>
+        <h2 class="text-2xl md:text-3xl font-black text-stone-800 tracking-tight mt-1">食光足迹与记忆</h2>
+        <p class="text-xs text-stone-400 mt-0.5">记录全家享用过的每一顿私房佳肴</p>
+    </div>
+    <div class="inline-flex p-1.5 bg-stone-200/60 rounded-2xl border border-stone-200/80 shadow-2xs select-none">
+        <a href="/history?view=list" 
+           class="px-5 py-2.5 sm:px-6 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2 {% if current_view == 'list' %}bg-white text-stone-900 font-black shadow-sm{% else %}text-stone-600 font-bold hover:text-stone-900 hover:bg-white/50{% endif %}">
+            <i class="fas fa-chart-pie text-xs sm:text-sm {% if current_view == 'list' %}text-orange-500{% else %}text-stone-400{% endif %}"></i>
+            <span>数据统计</span>
+        </a>
+        <a href="/history?view=timeline" 
+           class="px-5 py-2.5 sm:px-6 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2 {% if current_view == 'timeline' %}bg-white text-stone-900 font-black shadow-sm{% else %}text-stone-600 font-bold hover:text-stone-900 hover:bg-white/50{% endif %}">
+            <i class="fas fa-stream text-xs sm:text-sm {% if current_view == 'timeline' %}text-indigo-500{% else %}text-stone-400{% endif %}"></i>
+            <span>时光长廊</span>
+        </a>
     </div>
 </div>
 
-<div class="grid grid-cols-2 gap-3">
-    <div class="card p-4 relative overflow-hidden">
-        <div class="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--brand-bg)">
-            <i class="fas fa-fire text-xs" style="color:var(--brand)"></i>
+<!-- Stat Highlights Grid (2 cols on mobile, 4 cols on desktop) -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+    <div class="card p-4 sm:p-5 bg-white border border-stone-200/80 shadow-sm relative">
+        <div class="flex items-center justify-between mb-2.5">
+            <span class="text-xs font-bold text-stone-500">累计享用</span>
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-orange-50 text-orange-500 text-xs shrink-0">
+                <i class="fas fa-utensils"></i>
+            </div>
         </div>
-        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">点餐总量</p>
         <div class="flex items-baseline gap-1">
-            <span class="text-3xl font-black" style="color:var(--brand)">{{ stats.total_items }}</span>
-            <span class="text-xs text-stone-400 font-bold">道</span>
-        </div>
-    </div>
-    <div class="card p-4 relative overflow-hidden">
-        <div class="absolute top-2 right-2 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-            <i class="fas fa-calendar-check text-xs text-blue-400"></i>
-        </div>
-        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">点单次数</p>
-        <div class="flex items-baseline gap-1">
-            <span class="text-3xl font-black text-blue-500">{{ stats.total_orders }}</span>
-            <span class="text-xs text-stone-400 font-bold">场</span>
+            <span class="text-2xl sm:text-3xl font-black text-stone-800 leading-tight">{{ stats.total_items }}</span>
+            <span class="text-xs font-bold text-stone-400">道菜</span>
         </div>
     </div>
 
-    <div class="col-span-2 card p-5">
-        <h3 class="text-xs font-black text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <i class="fas fa-crown" style="color:var(--brand)"></i> 最受欢迎排行
-        </h3>
-        <div class="space-y-3">
-            {% for name, count in stats.top_dishes %}
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <span class="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black"
-                        {% if loop.index == 1 %}
-                        style="background:var(--brand);color:#fff"
-                        {% else %}
-                        style="background:var(--brand-bg);color:var(--brand)"
-                        {% endif %}>{{ loop.index }}</span>
-                    <span class="text-sm font-bold text-stone-700">{{ name }}</span>
-                </div>
-                <span class="text-xs text-stone-400 font-medium">{{ count }} 次</span>
+    <div class="card p-4 sm:p-5 bg-white border border-stone-200/80 shadow-sm relative">
+        <div class="flex items-center justify-between mb-2.5">
+            <span class="text-xs font-bold text-stone-500">欢聚开饭</span>
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-50 text-blue-500 text-xs shrink-0">
+                <i class="fas fa-calendar-check"></i>
             </div>
+        </div>
+        <div class="flex items-baseline gap-1">
+            <span class="text-2xl sm:text-3xl font-black text-stone-800 leading-tight">{{ stats.total_orders }}</span>
+            <span class="text-xs font-bold text-stone-400">顿餐</span>
+        </div>
+    </div>
+
+    <div class="card p-4 sm:p-5 bg-white border border-stone-200/80 shadow-sm relative">
+        <div class="flex items-center justify-between mb-2.5">
+            <span class="text-xs font-bold text-stone-500">招牌佳肴</span>
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-50 text-amber-500 text-xs shrink-0">
+                <i class="fas fa-crown"></i>
+            </div>
+        </div>
+        <div class="min-w-0">
+            <span class="text-base sm:text-lg font-black text-stone-800 truncate block leading-tight">
+                {{ stats.top_dishes[0][0] if stats.top_dishes else '虚位以待' }}
+            </span>
+            <span class="text-[10px] font-bold text-stone-400 mt-1 block">点单冠军</span>
+        </div>
+    </div>
+
+    <div class="card p-4 sm:p-5 bg-white border border-stone-200/80 shadow-sm relative">
+        <div class="flex items-center justify-between mb-2.5">
+            <span class="text-xs font-bold text-stone-500">头号干饭人</span>
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-green-50 text-green-500 text-xs shrink-0">
+                <i class="fas fa-award"></i>
+            </div>
+        </div>
+        <div class="min-w-0">
+            <span class="text-base sm:text-lg font-black text-stone-800 truncate block leading-tight">
+                {{ stats.active_users[0][0] if stats.active_users else '全家常聚' }}
+            </span>
+            <span class="text-[10px] font-bold text-stone-400 mt-1 block">最积极点单</span>
+        </div>
+    </div>
+</div>
+
+<!-- Leaderboards: Top Dishes & Active Diners (2 columns on md+) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Top Dishes Leaderboard -->
+    <div class="card p-5 bg-white border border-stone-200/80 shadow-sm space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-stone-100">
+            <h3 class="text-xs font-black text-stone-800 flex items-center gap-2">
+                <i class="fas fa-fire text-orange-500"></i> 最受家人喜爱排行
+            </h3>
+            <span class="text-[10px] font-bold text-stone-400">Top 榜单</span>
+        </div>
+        <div class="space-y-2.5">
+            {% for name, count in stats.top_dishes %}
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-stone-50/70 border border-stone-100">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <span class="w-6 h-6 flex items-center justify-center rounded-lg text-xs font-black shrink-0 {% if loop.index == 1 %}bg-amber-400 text-white shadow-sm{% elif loop.index == 2 %}bg-stone-300 text-stone-800{% elif loop.index == 3 %}bg-amber-700/60 text-white{% else %}bg-stone-200 text-stone-600{% endif %}">
+                        {{ loop.index }}
+                    </span>
+                    <span class="text-xs font-black text-stone-800 truncate">{{ name }}</span>
+                </div>
+                <span class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100/60 shrink-0">
+                    {{ count }} 次
+                </span>
+            </div>
+            {% else %}
+            <p class="text-center text-xs text-stone-400 py-6">暂无排行数据</p>
             {% endfor %}
         </div>
     </div>
 
-    <div class="col-span-2 card p-5">
-        <h3 class="text-xs font-black text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <i class="fas fa-user-friends text-blue-400"></i> 活跃食客
-        </h3>
-        <div class="space-y-3">
+    <!-- Active Diners Leaderboard -->
+    <div class="card p-5 bg-white border border-stone-200/80 shadow-sm space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-stone-100">
+            <h3 class="text-xs font-black text-stone-800 flex items-center gap-2">
+                <i class="fas fa-users text-blue-500"></i> 家庭干饭活跃度
+            </h3>
+            <span class="text-[10px] font-bold text-stone-400">积极参与</span>
+        </div>
+        <div class="space-y-2.5">
             {% for name, count in stats.active_users %}
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-[10px]" style="background: var(--brand)">
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-stone-50/70 border border-stone-100">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <div class="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm" style="background: var(--brand)">
                         {{ name[0] }}
                     </div>
-                    <span class="text-sm font-bold text-stone-700">{{ name }}</span>
+                    <span class="text-xs font-black text-stone-800 truncate">{{ name }}</span>
                 </div>
-                <span class="text-xs text-stone-400 font-medium">{{ count }} 次点单</span>
+                <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100/60 shrink-0">
+                    点单 {{ count }} 次
+                </span>
             </div>
+            {% else %}
+            <p class="text-center text-xs text-stone-400 py-6">暂无成员数据</p>
             {% endfor %}
         </div>
     </div>
 </div>
 
+<!-- Timeline View Section -->
 {% if current_view == "timeline" and timeline %}
-<div class="space-y-4">
+<div class="space-y-3.5">
     {% for day in timeline %}
-    <div class="card overflow-hidden">
-        <div class="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--brand-bg);color:var(--brand)">
-                    <i class="fas fa-calendar-day text-xs"></i>
+    <div class="card p-5 bg-white border border-stone-200/80 shadow-sm space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-stone-100">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center text-xs">
+                    <i class="fas fa-calendar-day"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-bold text-stone-800">{{ day.date }}</p>
-                    <p class="text-[10px] text-stone-400">{{ day.total }} 道菜</p>
+                    <p class="text-xs font-black text-stone-800">{{ day.date }}</p>
+                    <p class="text-[10px] text-stone-400 font-medium">当日共享用 {{ day.total }} 道佳肴</p>
                 </div>
             </div>
         </div>
-        <div class="px-5 py-3">
-            <div class="flex flex-wrap gap-2">
-                {% for dish in day.dishes %}
-                <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-stone-50 text-stone-600">{{ dish }}</span>
-                {% endfor %}
-            </div>
+        <div class="flex flex-wrap gap-2 pt-1">
+            {% for dish in day.dishes %}
+            <span class="text-xs font-bold px-3 py-1.5 rounded-xl bg-stone-50 border border-stone-200/70 text-stone-700">
+                {{ dish }}
+            </span>
+            {% endfor %}
         </div>
     </div>
     {% endfor %}
 </div>
 {% elif current_view == "timeline" %}
-<div class="card p-16 flex flex-col items-center justify-center text-center">
-    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-bg);color:var(--brand)">
-        <i class="fas fa-calendar text-2xl"></i>
+<div class="card p-16 flex flex-col items-center justify-center text-center bg-white border border-stone-200/80">
+    <div class="w-16 h-16 rounded-3xl flex items-center justify-center mb-4" style="background:var(--brand-soft);color:var(--brand)">
+        <i class="fas fa-calendar-alt text-2xl"></i>
     </div>
-    <p class="font-bold text-stone-600 text-lg mb-1">暂无历史记录</p>
-    <p class="text-sm text-stone-400">完成订单后会在这里显示</p>
+    <p class="font-black text-stone-800 text-lg mb-1">暂无历史时间轴</p>
+    <p class="text-xs text-stone-400">随着订单制作享用，这里将记录下家庭的美食长河</p>
 </div>
 {% endif %}
 
-<div class="card p-6 text-center">
-    <p class="text-xs text-stone-400">持续记录你的每一份美食记忆</p>
+<div class="card p-4 text-center bg-stone-50/50 border border-stone-100">
+    <p class="text-xs text-stone-400 font-medium">❤️ 持续记录全家的每一份私房美食记忆</p>
 </div>
 {% endblock %}

@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 def _clean_spaces(obj):
     """Remove unnecessary spaces between CJK characters."""
-    cjk = r'[一-鿿，。！？：；（）]'
+    cjk = r"[一-鿿，。！？：；（）]"
     if isinstance(obj, str):
-        return re.sub(rf'(?<={cjk})\s+(?={cjk})', '', obj)
+        return re.sub(rf"(?<={cjk})\s+(?={cjk})", "", obj)
     elif isinstance(obj, list):
         return [_clean_spaces(x) for x in obj]
     elif isinstance(obj, dict):
@@ -66,6 +66,7 @@ class AIClient:
 
     async def check_available(self) -> bool:
         import time
+
         now = time.monotonic()
         if self._available is not None and now - self._available_ts < _CACHE_TTL:
             return self._available
@@ -84,7 +85,9 @@ class AIClient:
                 result = await asyncio.to_thread(
                     subprocess.run,
                     ["agy", "--version"],
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 self._available = result.returncode == 0
             except Exception as e:
@@ -113,7 +116,9 @@ class AIClient:
             result = await asyncio.to_thread(
                 subprocess.run,
                 ["agy", "--print", prompt],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
             if result.returncode != 0:
                 raise RuntimeError(f"agy CLI failed: {result.stderr}")
@@ -134,7 +139,10 @@ class AIClient:
                     total = len(_RETRY_DELAYS) + 1
                     logger.warning(
                         "AI call failed (attempt %d/%d), retrying in %ds: %s",
-                        attempt + 1, total, delay, e,
+                        attempt + 1,
+                        total,
+                        delay,
+                        e,
                     )
                     await asyncio.sleep(delay)
         raise last_error
@@ -146,10 +154,7 @@ class AIClient:
         else:
             description_text = "请根据菜名推测合理的做法"
 
-        prompt = RECIPE_PROMPT_TEMPLATE.format(
-            dish_name=dish_name,
-            description_text=description_text
-        )
+        prompt = RECIPE_PROMPT_TEMPLATE.format(dish_name=dish_name, description_text=description_text)
 
         raw = await self._call_api(prompt)
 
@@ -159,8 +164,25 @@ class AIClient:
             cleaned = cleaned.rsplit("```", 1)[0]
         cleaned = cleaned.strip()
 
+        # 尝试提取JSON内容
+        json_str = cleaned
+        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+        if match:
+            json_str = match.group()
+
         try:
-            data = json.loads(cleaned)
+            data = json.loads(json_str)
+
+            # 处理可能的嵌套情况（如 {"result": "{...}"} 或字符串形式）
+            if isinstance(data, dict) and "result" in data:
+                res = data["result"]
+                if isinstance(res, str):
+                    try:
+                        data = json.loads(res)
+                    except json.JSONDecodeError:
+                        data = res
+                else:
+                    data = res
 
             if isinstance(data, str):
                 try:
@@ -170,44 +192,28 @@ class AIClient:
 
             data = _clean_spaces(data)
 
-            if isinstance(data, dict) and "result" in data:
-                res = data["result"]
-                if isinstance(res, str):
-                    try:
-                        inner_data = json.loads(res)
-                        return _clean_spaces(inner_data)
-                    except json.JSONDecodeError:
-                        return _clean_spaces(res)
-                return _clean_spaces(res)
+            # 使用Pydantic模型进行验证和标准化
+            from pydantic import ValidationError
 
-            if isinstance(data, str):
-                 if data.strip().startswith('{'):
-                     try:
-                         data = json.loads(data)
-                         data = _clean_spaces(data)
-                     except (json.JSONDecodeError, KeyError, TypeError):
-                         pass
+            from .schemas import RecipeContent
 
-            return data
-        except json.JSONDecodeError:
-            match = re.search(r'\{.*\}', cleaned, re.DOTALL)
-            if match:
+            if isinstance(data, dict):
                 try:
-                    data = json.loads(match.group())
-                    data = _clean_spaces(data)
-                    if isinstance(data, dict) and "result" in data:
-                        res = data["result"]
-                        if isinstance(res, str):
-                            try:
-                                inner_data = json.loads(res)
-                                return _clean_spaces(inner_data)
-                            except json.JSONDecodeError:
-                                return _clean_spaces(res)
-                        return _clean_spaces(res)
-                    return data
-                except Exception:
-                    pass
-            raise
+                    recipe = RecipeContent.model_validate(data)
+                    return recipe.model_dump()
+                except ValidationError as e:
+                    logger.warning(f"Recipe validation failed: {e}. Using fallback.")
+
+        except Exception as e:
+            logger.error(f"Failed to parse AI output: {e}. Raw output: {cleaned}")
+
+        return {
+            "ingredients": [{"name": "解析失败", "amount": "-"}],
+            "steps": ["AI生成的菜谱格式不正确，请重试或手动编辑。"],
+            "cook_time": "-",
+            "difficulty": "简单",
+            "tips": [f"原始文本: {cleaned[:200]}"],
+        }
 
 
 ai_client = AIClient()

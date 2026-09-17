@@ -4,6 +4,7 @@ from typing import Optional
 
 import aiofiles
 from fastapi import Cookie, Depends, HTTPException, Request, UploadFile
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -26,7 +27,21 @@ async def get_current_user(db: Session = Depends(get_db), user_id: Optional[str]
         verified = security.verify_cookie_value(user_id)
         if verified is None:
             return None
-        user = crud.get_user(db, int(verified))
+
+        if ":" in verified:
+            uid_str, token_version_str = verified.split(":", 1)
+            uid = int(uid_str)
+            token_version = int(token_version_str)
+        else:
+            uid = int(verified)
+            token_version = None
+
+        user = crud.get_user(db, uid)
+
+        if user and token_version is not None:
+            if user.token_version != token_version:
+                return None
+
         return user
     except (ValueError, TypeError):
         return None
@@ -46,13 +61,33 @@ async def require_admin(user: models.User = Depends(login_required)):
 
 
 def get_common_context(request: Request, db: Session, current_user: Optional[models.User] = None):
+    from urllib.parse import unquote
+
     users = crud.get_users(db)
-    return {
+    context = {
         "users": users,
         "current_user": current_user,
         "current_user_id": current_user.id if current_user else None,
         "csrf_token": get_csrf_token(request),
     }
+
+    flash_msg = request.cookies.get("flash_msg")
+    if flash_msg:
+        context["msg"] = unquote(flash_msg)
+    elif "msg" in request.query_params:
+        context["msg"] = request.query_params["msg"]
+
+    return context
+
+
+def redirect_with_flash(url: str, msg: str, status_code: int = 303) -> "RedirectResponse":
+    from urllib.parse import quote
+
+    from fastapi.responses import RedirectResponse
+
+    response = RedirectResponse(url=url, status_code=status_code)
+    response.set_cookie(key="flash_msg", value=quote(msg), max_age=10, httponly=True, samesite="lax")
+    return response
 
 
 async def save_upload_file(file: UploadFile, destination_dir: str) -> str:

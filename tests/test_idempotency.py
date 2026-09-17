@@ -16,17 +16,13 @@ def test_create_dish_idempotency(db):
     duplicate_dishes = [d for d in dishes if d.name == "Duplicate Dish"]
     assert len(duplicate_dishes) == 1
 
+
 def test_add_order_item_idempotency(db):
     user = crud.create_user(db, schemas.UserCreate(name="customer_dup", password="testpass666"))
     dish = crud.create_dish(db, schemas.DishCreate(name="Order Dish", created_by=user.id))
     order = crud.create_order(db, schemas.OrderCreate(created_by=user.id))
 
-    item_in = schemas.OrderItemCreate(
-        order_id=order.id,
-        dish_id=dish.id,
-        user_id=user.id,
-        remarks="No spicy"
-    )
+    item_in = schemas.OrderItemCreate(order_id=order.id, dish_id=dish.id, user_id=user.id, remarks="No spicy")
 
     # First call
     item1 = crud.add_order_item(db, item_in)
@@ -39,23 +35,14 @@ def test_add_order_item_idempotency(db):
     current_order = crud.get_current_order(db)
     assert len(current_order.items) == 1
 
+
 def test_add_order_item_different_remarks_not_idempotent(db):
     user = crud.create_user(db, schemas.UserCreate(name="customer_diff", password="testpass666"))
     dish = crud.create_dish(db, schemas.DishCreate(name="Order Dish Diff", created_by=user.id))
     order = crud.create_order(db, schemas.OrderCreate(created_by=user.id))
 
-    item_in1 = schemas.OrderItemCreate(
-        order_id=order.id,
-        dish_id=dish.id,
-        user_id=user.id,
-        remarks="Remark A"
-    )
-    item_in2 = schemas.OrderItemCreate(
-        order_id=order.id,
-        dish_id=dish.id,
-        user_id=user.id,
-        remarks="Remark B"
-    )
+    item_in1 = schemas.OrderItemCreate(order_id=order.id, dish_id=dish.id, user_id=user.id, remarks="Remark A")
+    item_in2 = schemas.OrderItemCreate(order_id=order.id, dish_id=dish.id, user_id=user.id, remarks="Remark B")
 
     # These should be different
     item1 = crud.add_order_item(db, item_in1)
@@ -64,3 +51,35 @@ def test_add_order_item_different_remarks_not_idempotent(db):
     assert item1.id != item2.id
     current_order = crud.get_current_order(db)
     assert len(current_order.items) == 2
+
+
+def test_update_order_item_idempotency(db):
+    user = crud.create_user(db, schemas.UserCreate(name="update_user", password="testpass666"))
+    dish = crud.create_dish(db, schemas.DishCreate(name="Update Dish", created_by=user.id))
+    order = crud.create_order(db, schemas.OrderCreate(created_by=user.id))
+    item = crud.add_order_item(db, schemas.OrderItemCreate(order_id=order.id, dish_id=dish.id, user_id=user.id))
+
+    # First update
+    crud.update_order_item(db, item.id, {"status": "delayed"}, user.id)
+    logs_before = len(crud.get_audit_logs(db, limit=100))
+
+    # Second update (idempotent)
+    crud.update_order_item(db, item.id, {"status": "delayed"}, user.id)
+    logs_after = len(crud.get_audit_logs(db, limit=100))
+
+    assert logs_after == logs_before
+
+
+def test_complete_order_idempotency(db):
+    user = crud.create_user(db, schemas.UserCreate(name="complete_user", password="testpass666"))
+    order = crud.create_order(db, schemas.OrderCreate(created_by=user.id))
+
+    # First complete
+    crud.complete_order(db, order.id, user.id)
+    logs_before = len(crud.get_audit_logs(db, limit=100))
+
+    # Second complete (idempotent)
+    crud.complete_order(db, order.id, user.id)
+    logs_after = len(crud.get_audit_logs(db, limit=100))
+
+    assert logs_after == logs_before

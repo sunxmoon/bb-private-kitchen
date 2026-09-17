@@ -8,9 +8,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/tailwind.min.css">
-    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="/static/css/app.css?v=2.2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
+    <script src="/static/js/compress.js?v=2.2" defer></script>
+    <script src="/static/js/cart.js?v=2.2" defer></script>
     {% if csrf_token %}
     <meta name="csrf-token" content="{{ csrf_token }}">
     {% endif %}
@@ -24,28 +26,103 @@
 </head>
 <body>
     {% if current_user %}
-    <header class="sticky top-0 z-50 bg-white/85 backdrop-blur-2xl border-b" style="border-color: var(--border-light);">
-        <div class="flex items-center justify-between px-4 h-14 max-w-2xl mx-auto">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-sm" style="background: linear-gradient(135deg, var(--brand), var(--brand-dark));">
-                    <i class="fas fa-utensils text-xs"></i>
+    <!-- Desktop Sidebar (Hidden on Mobile, Visible on md+) -->
+    <aside class="hidden md:flex flex-col fixed inset-y-0 left-0 w-64 glass border-r border-stone-200/70 p-5 z-40 justify-between select-none">
+        <div class="space-y-6">
+            <!-- Brand Header -->
+            <div class="flex items-center gap-3.5 px-2">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-base font-black shadow-md shrink-0" style="background: linear-gradient(135deg, var(--brand), var(--brand-dark));">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <div class="min-w-0">
+                    <h1 class="font-black text-stone-800 text-sm leading-tight tracking-tight truncate">宝宝的私房菜馆</h1>
+                    <p class="text-[11px] text-stone-400 font-medium">Family Kitchen</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="space-y-1.5" aria-label="桌面主导航">
+                <a href="/" class="sidebar-link {% if request.url.path == '/' %}sidebar-active{% endif %}">
+                    <i class="fas fa-utensils text-sm w-5 text-center"></i>
+                    <span>今日菜单</span>
+                </a>
+                <a href="/order" class="sidebar-link {% if request.url.path == '/order' %}sidebar-active{% endif %}">
+                    <i class="fas fa-plus-circle text-sm w-5 text-center"></i>
+                    <span>点餐中心</span>
+                </a>
+                <a href="/my-orders" class="sidebar-link {% if request.url.path == '/my-orders' %}sidebar-active{% endif %}">
+                    <i class="fas fa-clipboard-list text-sm w-5 text-center"></i>
+                    <span>实时订单</span>
+                </a>
+                <a href="/shopping-list" class="sidebar-link {% if request.url.path == '/shopping-list' %}sidebar-active{% endif %}">
+                    <i class="fas fa-shopping-basket text-sm w-5 text-center"></i>
+                    <span>采购清单</span>
+                </a>
+                <a href="/history" class="sidebar-link {% if request.url.path == '/history' %}sidebar-active{% endif %}">
+                    <i class="fas fa-history text-sm w-5 text-center"></i>
+                    <span>点单记录</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- User Profile & Controls -->
+        <div class="space-y-3 pt-4 border-t border-stone-200/60">
+            <div class="flex items-center gap-3 px-2 py-1">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow-sm" style="background: linear-gradient(135deg, {{ current_user.theme_color or 'var(--brand)' }}, {{ current_user.theme_color or 'var(--brand-dark)' }});">
+                    {{ current_user.name[0] }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-stone-800 truncate">{{ current_user.name }}</p>
+                    <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-md {% if current_user.role == 'admin' %}bg-orange-50 text-orange-600{% else %}bg-stone-100 text-stone-500{% endif %}">
+                        {{ '管理员' if current_user.role == 'admin' else '家庭成员' }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-1 px-1">
+                <a href="/settings" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-stone-400 hover:text-stone-700" title="个人设置">
+                    <i class="fas fa-cog text-xs"></i>
+                </a>
+                {% if current_user.role == 'admin' %}
+                <a href="/admin" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-stone-400 hover:text-stone-700" title="管理中心">
+                    <i class="fas fa-users-cog text-xs"></i>
+                </a>
+                {% endif %}
+                <form action="/logout" method="POST" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-stone-400 hover:text-red-500" title="退出登录">
+                        <i class="fas fa-sign-out-alt text-xs"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Mobile Header (Visible on mobile, hidden on md+) -->
+    <header class="md:hidden sticky top-0 z-40 bg-white/85 backdrop-blur-2xl border-b border-stone-200/60">
+        <div class="flex items-center justify-between px-4 h-14 max-w-5xl mx-auto">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shadow-sm" style="background: linear-gradient(135deg, var(--brand), var(--brand-dark));">
+                    <i class="fas fa-utensils"></i>
                 </div>
                 <div>
-                    <h1 class="font-black text-stone-800 text-sm leading-tight tracking-tight">宝宝的私房菜馆</h1>
-                    <p class="text-[10px] text-stone-400 font-medium">{{ current_user.name }}</p>
+                    <h1 class="font-black text-stone-800 text-xs leading-tight tracking-tight">宝宝的私房菜馆</h1>
+                    <p class="text-[9px] text-stone-400 font-medium">{{ current_user.name }}</p>
                 </div>
             </div>
             <div class="flex items-center gap-1">
-                <a href="/settings" class="btn btn-ghost btn-icon" aria-label="设置">
-                    <i class="fas fa-cog text-stone-500"></i>
+                <a href="/settings" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-stone-500" aria-label="设置">
+                    <i class="fas fa-cog text-xs"></i>
                 </a>
-                <a href="/admin" class="btn btn-ghost btn-icon" aria-label="管理">
-                    <i class="fas fa-users-cog text-stone-500"></i>
+                {% if current_user.role == 'admin' %}
+                <a href="/admin" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-stone-500" aria-label="管理">
+                    <i class="fas fa-users-cog text-xs"></i>
                 </a>
+                {% endif %}
                 <form action="/logout" method="POST" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="btn btn-ghost btn-icon" aria-label="退出">
-                        <i class="fas fa-sign-out-alt text-stone-500"></i>
+                    <button type="submit" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-stone-500" aria-label="退出">
+                        <i class="fas fa-sign-out-alt text-xs"></i>
                     </button>
                 </form>
             </div>
@@ -53,27 +130,35 @@
     </header>
     {% endif %}
 
-    <main class="max-w-2xl mx-auto px-4 pt-5 pb-6 space-y-5">
-        {% block content %}{% endblock %}
-    </main>
+    <!-- Main Viewport Area -->
+    <div class="min-h-screen {% if current_user %}md:pl-64{% endif %} flex flex-col">
+        <main class="flex-1 w-full max-w-5xl mx-auto px-4 md:px-8 pt-5 md:pt-7 pb-24 md:pb-12 space-y-6">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
 
     {% if current_user %}
-    <nav aria-label="主导航" class="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-2xl border-t border-stone-100" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
-        <div class="max-w-2xl mx-auto flex justify-around items-center h-16 px-2">
-            <a href="/" aria-current="{% if request.url.path == '/' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] rounded-xl transition-all duration-200 {% if request.url.path == '/' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="菜单">
-                <i class="fas fa-utensils text-lg"></i>
+    <!-- Mobile Bottom Navigation Bar (Hidden on md+) -->
+    <nav aria-label="手机底部主导航" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-2xl border-t border-stone-200/60" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+        <div class="max-w-md mx-auto flex justify-around items-center h-16 px-2">
+            <a href="/" aria-current="{% if request.url.path == '/' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] {% if request.url.path == '/' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="菜单">
+                <i class="fas fa-utensils text-base"></i>
                 <span class="text-[10px] font-bold">菜单</span>
             </a>
-            <a href="/order" aria-current="{% if request.url.path == '/order' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] rounded-xl transition-all duration-200 {% if request.url.path == '/order' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="点餐">
-                <i class="fas fa-plus-circle text-lg"></i>
+            <a href="/order" aria-current="{% if request.url.path == '/order' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] {% if request.url.path == '/order' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="点餐">
+                <i class="fas fa-plus-circle text-base"></i>
                 <span class="text-[10px] font-bold">点餐</span>
             </a>
-            <a href="/my-orders" aria-current="{% if request.url.path == '/my-orders' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] rounded-xl transition-all duration-200 {% if request.url.path == '/my-orders' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="订单">
-                <i class="fas fa-clipboard-list text-lg"></i>
+            <a href="/my-orders" aria-current="{% if request.url.path == '/my-orders' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] {% if request.url.path == '/my-orders' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="订单">
+                <i class="fas fa-clipboard-list text-base"></i>
                 <span class="text-[10px] font-bold">订单</span>
             </a>
-            <a href="/history" aria-current="{% if request.url.path == '/history' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] rounded-xl transition-all duration-200 {% if request.url.path == '/history' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="记录">
-                <i class="fas fa-history text-lg"></i>
+            <a href="/shopping-list" aria-current="{% if request.url.path == '/shopping-list' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] {% if request.url.path == '/shopping-list' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="清单">
+                <i class="fas fa-shopping-basket text-base"></i>
+                <span class="text-[10px] font-bold">清单</span>
+            </a>
+            <a href="/history" aria-current="{% if request.url.path == '/history' %}page{% endif %}" class="nav-item flex flex-col items-center justify-center gap-0.5 min-w-[3rem] min-h-[3rem] {% if request.url.path == '/history' %}nav-active{% else %}text-stone-400 hover:text-stone-500{% endif %}" aria-label="记录">
+                <i class="fas fa-history text-base"></i>
                 <span class="text-[10px] font-bold">记录</span>
             </a>
         </div>
@@ -81,6 +166,96 @@
     {% endif %}
 
     <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-full max-w-xs pointer-events-none" role="status" aria-live="polite"></div>
+
+    {% if current_user %}
+    <!-- Floating Cart Dock (Hidden when empty) -->
+    <div id="floating-cart-dock" class="hidden cart-dock">
+        <div class="glass-dock rounded-3xl p-3 flex items-center justify-between shadow-2xl border border-white/60">
+            <div class="flex items-center gap-3 cursor-pointer pl-2 flex-1 min-w-0" onclick="Cart.openDrawer()">
+                <div class="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-orange-500 text-white font-black shadow-md shadow-orange-500/30 shrink-0">
+                    <i class="fas fa-shopping-basket text-base"></i>
+                    <span id="cart-dock-count-badge" class="absolute -top-1.5 -right-1.5 min-w-[1.25rem] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-white shadow-sm">0</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                        <span>点餐篮</span>
+                        <span class="text-[10px] text-stone-400 font-normal">点击调整</span>
+                    </p>
+                    <p id="cart-dock-summary" class="text-[11px] text-stone-500 truncate mt-0.5">尚未选择菜品</p>
+                </div>
+            </div>
+            <button type="button" onclick="Cart.openDrawer()" class="btn btn-primary !h-11 !px-4 text-xs font-black rounded-2xl shadow-lg shadow-orange-500/25 shrink-0 ml-2">
+                去下单 <i class="fas fa-chevron-right text-[10px] ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Cart Drawer Modal -->
+    <div id="cart-drawer-modal" class="hidden modal-overlay fixed inset-0 z-[75] bg-stone-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this)closeModal('cart-drawer-modal')">
+        <div class="card-elevated modal-content w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col overflow-hidden bg-white">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-5 border-b border-stone-100 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center font-bold text-sm">
+                        <i class="fas fa-shopping-basket"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-stone-800 text-base">点餐清单</h3>
+                        <p class="text-[10px] text-stone-400">核对菜品与口味偏好</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="Cart.clear()" class="text-xs font-bold text-stone-400 hover:text-red-500 px-2 py-1 rounded-lg transition-colors">
+                        <i class="fas fa-trash-alt text-[10px] mr-1"></i>清空
+                    </button>
+                    <button type="button" onclick="closeModal('cart-drawer-modal')" class="w-8 h-8 rounded-full bg-stone-100 text-stone-400 hover:text-stone-600 flex items-center justify-center">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable Items List -->
+            <div id="cart-drawer-items" class="flex-1 overflow-y-auto p-4 space-y-3 min-h-[140px]">
+                <!-- Filled dynamically by Cart.renderDrawerList() -->
+            </div>
+
+            <!-- Preferences & CTA Footer -->
+            <div class="p-5 border-t border-stone-100 bg-stone-50/50 space-y-4 shrink-0">
+                <div>
+                    <label class="input-label text-[11px] mb-2 flex items-center gap-1.5">
+                        <i class="fas fa-pepper-hot text-orange-500 text-[10px]"></i> 口味偏好快捷标签
+                    </label>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" data-val="正常口味" class="pref-chip taste-chip active px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500 text-white transition-all">正常口味</button>
+                        <button type="button" data-val="微辣" class="pref-chip taste-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 text-stone-600 transition-all">微辣</button>
+                        <button type="button" data-val="不辣清淡" class="pref-chip taste-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 text-stone-600 transition-all">不辣清淡</button>
+                        <button type="button" data-val="少油少盐" class="pref-chip taste-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 text-stone-600 transition-all">少油少盐</button>
+                        <button type="button" data-val="免葱姜蒜" class="pref-chip taste-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 text-stone-600 transition-all">免葱姜蒜</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="input-label text-[11px] mb-2 flex items-center gap-1.5">
+                        <i class="fas fa-clock text-blue-500 text-[10px]"></i> 期望上菜时间
+                    </label>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" data-val="尽快开饭" class="pref-chip time-chip active px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500 text-white transition-all">尽快开饭</button>
+                        <button type="button" data-val="约12:00" class="pref-chip time-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 text-stone-600 transition-all">约12:00</button>
+                        <button type="button" data-val="约18:30" class="pref-chip time-chip px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 text-stone-600 transition-all">约18:30</button>
+                    </div>
+                </div>
+
+                <div>
+                    <input type="text" id="cart-remarks-input" placeholder="给大厨补充留言（如：多炖一会儿、盛在大碗里）" class="input !min-h-[42px] text-xs">
+                </div>
+
+                <button type="button" id="cart-submit-btn" onclick="Cart.submitOrder()" class="btn btn-primary w-full py-3.5 text-sm font-black rounded-2xl shadow-lg shadow-orange-500/25">
+                    确认下单
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div id="modal-container" class="hidden modal-overlay fixed inset-0 z-[60] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this)closeModal('modal-container')">
         <div id="modal-body" class="modal-content w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -141,8 +316,16 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            {% if msg %}
+            showToast("{{ msg }}", 'success');
+            {% endif %}
             var p = new URLSearchParams(window.location.search);
-            if (p.has('msg')) { showToast(p.get('msg'), 'success'); window.history.replaceState({}, document.title, window.location.pathname); }
+            if (p.has('msg')) {
+                {% if not msg %}
+                showToast(p.get('msg'), 'success');
+                {% endif %}
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
         });
 
         document.body.addEventListener('htmx:afterSwap', function(e) {

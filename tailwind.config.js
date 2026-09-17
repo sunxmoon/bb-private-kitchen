@@ -1,5 +1,8 @@
 module.exports = {
-  content: ["./templates/**/*.html"],
+  content: [
+    "./templates/**/*.html",
+    "./static/js/**/*.js"
+  ],
   safelist: [
     "bg-red-500",
     "bg-gray-800",

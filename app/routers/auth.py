@@ -13,10 +13,14 @@ router = APIRouter(tags=["auth"])
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse(request, "login.html", {
-        "csrf_token": get_csrf_token(request),
-    })
+def login_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "csrf_token": get_csrf_token(request),
+        },
+    )
 
 
 @router.post("/login")
@@ -40,8 +44,10 @@ async def login(
     secure = request.url.scheme == "https"
     response.set_cookie(
         key="user_id",
-        value=sign_cookie_value(str(user.id)),
-        httponly=True, samesite="lax", max_age=86400,
+        value=sign_cookie_value(f"{user.id}:{user.token_version}"),
+        httponly=True,
+        samesite="lax",
+        max_age=86400,
         secure=secure,
     )
     return response

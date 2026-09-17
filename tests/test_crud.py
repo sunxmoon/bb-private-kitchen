@@ -104,9 +104,15 @@ def test_order_lifecycle(db):
     order = crud.get_or_create_current_order(db, user.id)
     assert order is not None
     assert order.status == "open"
-    item = crud.add_order_item(db, schemas.OrderItemCreate(
-        order_id=order.id, dish_id=dish.id, user_id=user.id, taste="Yummy",
-    ))
+    item = crud.add_order_item(
+        db,
+        schemas.OrderItemCreate(
+            order_id=order.id,
+            dish_id=dish.id,
+            user_id=user.id,
+            taste="Yummy",
+        ),
+    )
     assert item.id is not None
     assert crud.get_current_order(db).id == order.id
     crud.delete_order_item(db, item.id, user.id)

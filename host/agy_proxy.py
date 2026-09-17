@@ -3,16 +3,15 @@
 Host-side HTTP proxy for AGY CLI (Antigravity CLI).
 Uses FastAPI for asynchronous concurrency and Smart-Path for zero-config discovery.
 """
+
 import asyncio
-import json
 import logging
 import os
 import shutil
-import sys
-import subprocess
-from typing import Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Body, Response
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
 logging.basicConfig(
@@ -27,8 +26,10 @@ HOST = os.getenv("AGY_PROXY_HOST", "0.0.0.0")
 PORT = int(os.getenv("AGY_PROXY_PORT", "8765"))
 TIMEOUT = int(os.getenv("AGY_PROXY_TIMEOUT", "120"))
 
+
 class GenerateRequest(BaseModel):
     prompt: str
+
 
 class SmartPathFinder:
     @staticmethod
@@ -63,8 +64,10 @@ class SmartPathFinder:
                 return p
         return None
 
+
 AGY_BIN = SmartPathFinder.find_agy()
 AGY_HOME = SmartPathFinder.get_agy_home()
+
 
 def get_subprocess_env() -> dict:
     env = os.environ.copy()
@@ -85,6 +88,7 @@ def get_subprocess_env() -> dict:
     env["PATH"] = ":".join(paths) + ":" + env.get("PATH", "")
     return env
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if AGY_BIN:
@@ -95,7 +99,9 @@ async def lifespan(app: FastAPI):
         logger.error("Smart-Path: agy CLI NOT FOUND! Please install it.")
     yield
 
+
 app = FastAPI(title="AGY Proxy", version="1.0.0", lifespan=lifespan)
+
 
 @app.get("/health")
 async def health():
@@ -103,15 +109,13 @@ async def health():
         return {"ok": False, "reason": "agy not found"}
     try:
         proc = await asyncio.create_subprocess_exec(
-            AGY_BIN, "--version",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=get_subprocess_env()
+            AGY_BIN, "--version", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=get_subprocess_env()
         )
         await asyncio.wait_for(proc.wait(), timeout=5)
         return {"ok": proc.returncode == 0}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
 
 @app.post("/generate")
 async def generate(req: GenerateRequest):
@@ -120,16 +124,15 @@ async def generate(req: GenerateRequest):
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            AGY_BIN, "--print", req.prompt,
+            AGY_BIN,
+            "--print",
+            req.prompt,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=get_subprocess_env()
+            env=get_subprocess_env(),
         )
 
-        stdout, stderr = await asyncio.wait_for(
-            proc.communicate(),
-            timeout=TIMEOUT
-        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=TIMEOUT)
 
         if proc.returncode != 0:
             err_msg = stderr.decode("utf-8", errors="replace")
@@ -145,6 +148,8 @@ async def generate(req: GenerateRequest):
         logger.error("Unexpected error: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host=HOST, port=PORT)

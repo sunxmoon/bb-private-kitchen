@@ -6,6 +6,7 @@ Usage:
     uv run python cleanup_images.py          # dry-run (show what would be deleted)
     uv run python cleanup_images.py --force  # actually delete
 """
+
 import os
 import sys
 

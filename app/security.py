@@ -15,14 +15,14 @@ def is_production():
 
 def verify_password(plain_password: str, hashed_password: str):
     return bcrypt.checkpw(
-        plain_password.encode('utf-8'),
-        hashed_password.encode('utf-8') if isinstance(hashed_password, str) else hashed_password
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8") if isinstance(hashed_password, str) else hashed_password
     )
+
 
 def get_password_hash(password: str):
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
 
 def sign_cookie_value(value: str) -> str:
@@ -36,8 +36,10 @@ def sign_cookie_value(value: str) -> str:
 def verify_cookie_value(signed: str) -> str | None:
     try:
         sig_b64, val_b64 = signed.split(".", 1)
+
         def decode_b64(s: str):
             return urlsafe_b64decode(s + "=" * (4 - len(s) % 4))
+
         sig = decode_b64(sig_b64)
         val = decode_b64(val_b64)
         expected = hmac.new(COOKIE_SECRET.encode(), val, hashlib.sha256).digest()

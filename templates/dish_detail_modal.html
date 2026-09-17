@@ -1,102 +1,121 @@
-<div class="card-elevated overflow-hidden scale-in relative !rounded-[var(--radius-lg)]">
+<div class="card-elevated overflow-hidden scale-in relative rounded-3xl bg-white max-w-lg w-full">
+    <!-- Dish Image with Badges -->
     {% if dish.image_url %}
-    <div class="aspect-video overflow-hidden">
+    <div class="aspect-[16/10] overflow-hidden relative bg-stone-100">
         <img src="{{ dish.image_url }}" alt="{{ dish.name }}" class="w-full h-full object-cover">
+        <button onclick="closeModal('modal-container')" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-black/30 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/50 transition-colors shadow-md">
+            <i class="fas fa-times text-xs"></i>
+        </button>
     </div>
     {% else %}
-    <div class="aspect-video bg-gradient-to-br from-orange-50 to-stone-100 flex items-center justify-center">
-        <i class="fas fa-utensils text-5xl text-stone-200"></i>
+    <div class="aspect-[16/10] bg-gradient-to-br from-orange-50 to-stone-100 flex flex-col items-center justify-center gap-2 relative">
+        <div class="w-14 h-14 rounded-2xl bg-white/80 flex items-center justify-center text-stone-300 shadow-sm">
+            <i class="fas fa-utensils text-2xl"></i>
+        </div>
+        <span class="text-xs text-stone-400 font-bold">待拍私房美照</span>
+        <button onclick="closeModal('modal-container')" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-stone-200/80 text-stone-600 flex items-center justify-center hover:bg-stone-300 transition-colors">
+            <i class="fas fa-times text-xs"></i>
+        </button>
     </div>
     {% endif %}
 
-    <div class="p-6 space-y-6">
+    <div class="p-6 space-y-5">
+        <!-- Title & Category -->
         <div>
-            <div class="flex items-start justify-between gap-4">
+            <div class="flex items-start justify-between gap-3">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                        <h2 class="text-xl font-black text-stone-800 leading-tight">{{ dish.name }}</h2>
-                        {% if dish.recipe %}
-                        <span class="text-[9px] font-bold px-2 py-0.5 bg-orange-50 text-orange-600 rounded-lg border border-orange-100 shrink-0">
+                        <h2 class="text-xl font-black text-stone-800 tracking-tight">{{ dish.name }}</h2>
+                        {% if dish.category %}
+                        <span class="text-[10px] font-black px-2 py-0.5 rounded-lg bg-orange-50 text-orange-600 border border-orange-100">
+                            {{ dish.category }}
+                        </span>
+                        {% endif %}
+                        {% if dish.recipe and dish.recipe.content.difficulty %}
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-stone-100 text-stone-600">
                             {{ dish.recipe.content.difficulty }}
                         </span>
                         {% endif %}
                     </div>
-                    {% if dish.description %}
-                    <p class="text-sm text-stone-500 mt-2 leading-relaxed">{{ dish.description }}</p>
-                    {% else %}
-                    <p class="text-sm text-stone-300 mt-2 italic">这道菜很神秘，主厨还没留下描述...</p>
-                    {% endif %}
+                    <p class="text-xs text-stone-500 mt-2 leading-relaxed">
+                        {{ dish.description or '私房独门秘制美味，鲜香适口。' }}
+                    </p>
                 </div>
-                <div class="flex gap-2 shrink-0">
-                    <button onclick="document.getElementById('edit-dish-form').classList.toggle('hidden')" class="btn btn-ghost btn-icon !min-h-[2.25rem] !w-9 !h-9" title="编辑">
-                        <i class="fas fa-pen text-[10px]"></i>
+                <div class="flex gap-1.5 shrink-0">
+                    <button onclick="document.getElementById('edit-dish-form').classList.toggle('hidden')" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-stone-400 hover:text-stone-700" title="编辑菜品">
+                        <i class="fas fa-pen text-xs"></i>
                     </button>
-                    <button onclick="if(confirm('确定下架 ' + {{ dish.name | tojson }} + ' 吗？')) document.getElementById('delete-dish-form-detail').submit()" class="btn btn-ghost btn-icon !min-h-[2.25rem] !w-9 !h-9 text-red-400" title="删除">
-                        <i class="fas fa-trash-alt text-[10px]"></i>
+                    <button onclick="if(confirm('确定下架 ' + {{ dish.name | tojson }} + ' 吗？')) document.getElementById('delete-dish-form-detail').submit()" class="btn btn-ghost btn-icon !w-8 !h-8 !min-h-0 text-stone-400 hover:text-red-500" title="删除菜品">
+                        <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
             </div>
         </div>
 
-        <div id="edit-dish-form" class="hidden bg-stone-50 rounded-2xl p-4 border border-stone-100 space-y-4 fade-in">
-            <form action="/update-dish/{{ dish.id }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <!-- Inline Edit Form -->
+        <div id="edit-dish-form" class="hidden bg-stone-50/80 rounded-2xl p-4 border border-stone-200/80 space-y-3.5 fade-in">
+            <form action="/update-dish/{{ dish.id }}" method="POST" enctype="multipart/form-data" class="space-y-3">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div>
                     <label class="input-label text-xs">菜名</label>
-                    <input type="text" name="name" value="{{ dish.name }}" required class="input text-sm">
+                    <input type="text" name="name" value="{{ dish.name }}" required class="input !min-h-[38px] text-xs font-bold">
                 </div>
                 <div>
                     <label class="input-label text-xs">描述</label>
-                    <textarea name="description" class="input h-16 resize-none text-sm">{{ dish.description or '' }}</textarea>
+                    <textarea name="description" class="input h-16 resize-none text-xs">{{ dish.description or '' }}</textarea>
                 </div>
                 <div>
                     <label class="input-label text-xs">更换照片</label>
-                    <input type="file" name="file" accept="image/*" class="text-[10px] text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:bg-orange-50 file:text-orange-600">
+                    <input type="file" name="file" accept="image/*" class="text-xs text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-600">
                 </div>
-                <div class="flex gap-3">
-                    <button type="submit" class="btn btn-primary flex-1 text-xs py-2.5">保存修改</button>
-                    <button type="button" onclick="document.getElementById('edit-dish-form').classList.add('hidden')" class="btn btn-ghost flex-1 text-xs py-2.5">取消</button>
+                <div class="flex gap-2.5 pt-1">
+                    <button type="submit" class="btn btn-primary flex-1 text-xs font-bold py-2 rounded-xl">保存修改</button>
+                    <button type="button" onclick="document.getElementById('edit-dish-form').classList.add('hidden')" class="btn btn-ghost flex-1 text-xs font-bold py-2 rounded-xl">取消</button>
                 </div>
             </form>
         </div>
 
-        <div class="flex items-stretch gap-3">
-            <button onclick="loadRecipe({{ dish.id }})" class="btn bg-stone-100 hover:bg-stone-200 text-stone-700 flex-1 flex-col gap-1 py-3 h-auto">
-                <i class="fas fa-book-open text-base"></i>
-                <span class="text-[10px] font-bold">查看菜谱</span>
+        <!-- Action Grid: View Recipe / AI Generate / Add to Cart -->
+        <div class="grid grid-cols-3 gap-2.5 pt-1">
+            <button onclick="loadRecipe({{ dish.id }})" class="btn btn-ghost border border-stone-200 bg-white hover:bg-stone-50 flex-col gap-1 py-3 h-auto rounded-2xl text-stone-700">
+                <i class="fas fa-book-open text-base text-orange-500"></i>
+                <span class="text-[11px] font-black">查看菜谱</span>
             </button>
             <button 
                 hx-post="/generate-recipe-modal/{{ dish.id }}"
                 hx-target="#modal-body"
                 hx-indicator="#ai-loading-overlay-detail"
-                class="btn flex-1 flex-col gap-1 py-3 h-auto text-orange-500 bg-orange-50 hover:bg-orange-100"
-                title="AI生成">
-                <i class="fas fa-robot text-base"></i>
-                <span class="text-[10px] font-bold">AI创作</span>
+                class="btn border border-orange-200/80 bg-orange-50 hover:bg-orange-100 flex-col gap-1 py-3 h-auto rounded-2xl text-orange-600"
+                title="AI智能生成">
+                <i class="fas fa-robot text-base text-orange-500"></i>
+                <span class="text-[11px] font-black">AI创作</span>
             </button>
-            <a href="/order" class="btn btn-primary flex-1 flex-col gap-1 py-3 h-auto">
-                <i class="fas fa-utensils text-base"></i>
-                <span class="text-[10px] font-bold">立即点餐</span>
-            </a>
+            <button 
+                type="button"
+                onclick="Cart.add({{ dish.id }}, '{{ dish.name }}', '{{ dish.category or '' }}', '{{ dish.image_url or '' }}'); closeModal('modal-container')"
+                class="btn btn-primary flex-col gap-1 py-3 h-auto rounded-2xl text-white shadow-md shadow-orange-500/25">
+                <i class="fas fa-plus text-base"></i>
+                <span class="text-[11px] font-black">加入点餐篮</span>
+            </button>
         </div>
 
-        <div id="ai-loading-overlay-detail" class="htmx-indicator absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center space-y-4">
-            <div class="w-16 h-16 relative">
+        <!-- AI Generating Loading Overlay -->
+        <div id="ai-loading-overlay-detail" class="htmx-indicator absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center space-y-4 rounded-3xl">
+            <div class="w-14 h-14 relative">
                 <div class="absolute inset-0 border-4 border-orange-100 rounded-full"></div>
                 <div class="absolute inset-0 border-4 border-orange-500 rounded-full border-t-transparent animate-spin"></div>
                 <div class="absolute inset-0 flex items-center justify-center">
-                    <i class="fas fa-robot text-orange-500 animate-bounce"></i>
+                    <i class="fas fa-robot text-orange-500 animate-bounce text-lg"></i>
                 </div>
             </div>
-            <p class="text-sm font-black text-stone-800">正在开启 AI 创作...</p>
+            <div class="text-center">
+                <p class="text-sm font-black text-stone-800">正在向 AI 大厨请教秘籍...</p>
+                <p class="text-xs text-stone-400 mt-1">自动拆解食材用量与火候技巧</p>
+            </div>
         </div>
     </div>
 
     <form id="delete-dish-form-detail" action="/delete-dish/{{ dish.id }}" method="POST" class="hidden">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     </form>
-    
-    <button onclick="closeModal('modal-container')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-colors">
-        <i class="fas fa-times"></i>
-    </button>
 </div>

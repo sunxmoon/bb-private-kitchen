@@ -35,6 +35,7 @@ def test_get_preference_redirects_to_login_when_unauthenticated(client, db):
 
 def test_crud_create_user_duplicate_name_raises(db):
     from sqlalchemy.exc import IntegrityError
+
     crud.create_user(db, schemas.UserCreate(name="unique", password="testpass666"))
     with pytest.raises(IntegrityError):
         crud.create_user(db, schemas.UserCreate(name="unique", password="testpass666"))
@@ -86,6 +87,7 @@ def test_crud_delete_nonexistent_order(db):
 
 def test_json_serializable_with_sensitive(db):
     from app.crud import json_serializable
+
     data = {"name": "test", "password": "secret123", "email": "test@test.com"}
     result = json_serializable(data)
     assert "password" not in result

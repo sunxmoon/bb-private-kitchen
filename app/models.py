@@ -12,6 +12,7 @@ class User(Base):
     password = Column(String(255), nullable=False)
     theme_color = Column(String(20), default="#f97316")
     role = Column(String(20), default="user", nullable=False)
+    token_version = Column(Integer, default=1, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     dishes = relationship("Dish", back_populates="creator")

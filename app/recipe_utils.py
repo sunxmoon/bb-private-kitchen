@@ -38,7 +38,11 @@ def parse_recipe_from_form(
 
 def save_recipe_form(db, dish_id, recipe_ingredients, recipe_steps, recipe_cook_time, recipe_difficulty, recipe_tips, user_id):
     content = parse_recipe_from_form(
-        recipe_ingredients, recipe_steps, recipe_cook_time, recipe_difficulty, recipe_tips,
+        recipe_ingredients,
+        recipe_steps,
+        recipe_cook_time,
+        recipe_difficulty,
+        recipe_tips,
     )
     if content:
         crud.create_or_update_recipe(db, dish_id, content, user_id)

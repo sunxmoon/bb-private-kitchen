@@ -1,26 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="text-center mb-6">
-    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm" style="background:var(--brand-bg);color:var(--brand)">
-        <i class="fas fa-utensils text-2xl"></i>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+    <div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-black px-2.5 py-0.5 rounded-full" style="background:var(--brand-soft);color:var(--brand)">
+                <i class="fas fa-utensils text-[10px] mr-1"></i>点餐中心
+            </span>
+        </div>
+        <h2 class="text-2xl md:text-3xl font-black text-stone-800 tracking-tight mt-1">今天想吃什么？</h2>
+        <p class="text-xs text-stone-400 mt-0.5">定制专属口味偏好，或直接加菜到点餐篮</p>
     </div>
-    <h2 class="text-2xl font-black text-stone-800">我想吃...</h2>
-    <p class="text-xs text-stone-400 mt-1">选一道菜，告诉家人你的口味偏好</p>
+    <div class="flex items-center gap-2">
+        <a href="/" class="btn btn-ghost !h-10 !px-3.5 text-xs font-bold rounded-xl border border-stone-200/80 bg-white">
+            <i class="fas fa-arrow-left mr-1.5 text-stone-400"></i> 返回菜单
+        </a>
+    </div>
 </div>
 
+<!-- Active Order Items Banner -->
 {% if current_order and current_order.items %}
-<div id="order-summary" class="card p-4 mb-4" hx-get="/order" hx-trigger="every 30s" hx-select="#order-summary" hx-swap="outerHTML">
-    <div class="flex items-center gap-2 mb-2">
-        <i class="fas fa-receipt text-xs" style="color:var(--brand)"></i>
-        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">已点菜品</span>
-        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="color:var(--brand);background:var(--brand-bg)">{{ current_order.items|length }} 道</span>
+<div id="order-summary" class="card p-4 bg-orange-50/50 border-orange-100/80" hx-get="/order" hx-trigger="every 30s" hx-select="#order-summary" hx-swap="outerHTML">
+    <div class="flex items-center justify-between gap-2 mb-2.5">
+        <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-lg bg-orange-500 text-white flex items-center justify-center text-[11px] font-bold">
+                <i class="fas fa-receipt"></i>
+            </div>
+            <span class="text-xs font-black text-stone-800">当前批次已点菜品</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-orange-600 shadow-sm border border-orange-200/60">{{ current_order.items|length }} 道</span>
+        </div>
+        <a href="/my-orders" class="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+            查看实时进度 <i class="fas fa-chevron-right text-[9px]"></i>
+        </a>
     </div>
     <div class="flex flex-wrap gap-2">
         {% for item in current_order.items %}
         {% if item.status != 'completed' %}
-        <span class="text-xs font-bold px-2.5 py-1 rounded-lg border border-stone-100 bg-stone-50 text-stone-600">
-            {{ item.user.name if item.user else '?' }} · {{ item.dish.name if item.dish else '已删除' }}
+        <span class="text-xs font-bold px-3 py-1.5 rounded-xl border border-orange-200/60 bg-white text-stone-700 shadow-sm flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-orange-400"></span>
+            <span>{{ item.user.name if item.user else '?' }} · {{ item.dish.name if item.dish else '已删除' }}</span>
         </span>
         {% endif %}
         {% endfor %}
@@ -28,260 +46,278 @@
 </div>
 {% endif %}
 
+<!-- Top Favorites ("你常点的") -->
 {% if top_dishes %}
-<div class="mb-4">
-    <div class="flex items-center gap-2 mb-2">
-        <i class="fas fa-fire text-xs" style="color:var(--brand)"></i>
-        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">你常点的</span>
+<div class="space-y-2">
+    <div class="flex items-center gap-2 px-1">
+        <i class="fas fa-fire text-xs text-orange-500"></i>
+        <span class="text-xs font-black text-stone-700">经常翻牌的美味</span>
     </div>
-    <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+    <div class="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
         {% for dish, count in top_dishes %}
-        <a href="/order?dish_id={{ dish.id }}" class="card px-3 py-2 flex items-center gap-2 shrink-0 hover:bg-stone-50 transition-colors">
-            <span class="text-xs font-bold text-stone-700">{{ dish.name }}</span>
-            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style="color:var(--brand);background:var(--brand-bg)">{{ count }}次</span>
-        </a>
+        <div class="card p-3 flex items-center gap-3 shrink-0 bg-white hover:border-orange-200 transition-all cursor-pointer border border-stone-200/80"
+             onclick="selectDish({{ dish.id }})">
+            <div class="w-10 h-10 rounded-xl overflow-hidden bg-stone-100 shrink-0">
+                {% if dish.image_url %}
+                <img src="{{ dish.image_url }}" alt="{{ dish.name }}" class="w-full h-full object-cover">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center text-stone-300"><i class="fas fa-utensils text-xs"></i></div>
+                {% endif %}
+            </div>
+            <div class="min-w-0 pr-1">
+                <p class="text-xs font-bold text-stone-800 truncate">{{ dish.name }}</p>
+                <span class="text-[10px] font-bold text-orange-600">点过 {{ count }} 次</span>
+            </div>
+        </div>
         {% endfor %}
     </div>
 </div>
 {% endif %}
 
-<form action="/add-item" method="POST" id="order-form" class="space-y-4">
+<!-- Single Customization Form (Traditional + Modernized) -->
+<form action="/add-item" method="POST" id="order-form" class="space-y-5">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-    <!-- Dish Selection Group -->
-    <div class="card p-5 space-y-4">
-        <div class="flex items-center gap-2 mb-1">
-            <i class="fas fa-utensils text-stone-400 text-xs"></i>
-            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">选择菜品</span>
-        </div>
-        
-        <div class="space-y-3">
-            <div class="relative">
-                <select id="dish_id" name="dish_id" required class="input">
-                    <option value="">— 选一道菜 —</option>
-                    {% for dish in dishes %}
-                    <option value="{{ dish.id }}">{{ dish.name }}</option>
-                    {% endfor %}
-                </select>
+    <!-- Dish Selection Card -->
+    <div class="card p-5 sm:p-6 space-y-4 bg-white border border-stone-200/80 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center text-xs font-bold shrink-0">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <h3 class="text-sm font-black text-stone-800">1. 选择定制菜品</h3>
             </div>
-            
-            <button type="button" id="fill-btn" onclick="fillPreference()" class="hidden btn text-xs font-bold w-full transition-all border border-orange-100 hover:bg-orange-50" style="color:var(--brand);background:var(--brand-bg)">
-                <i class="fas fa-history text-[10px]"></i> 同上次一样
+            <button type="button" id="fill-btn" onclick="fillPreference()" class="hidden text-xs font-bold text-orange-600 hover:text-orange-700 transition-colors">
+                <i class="fas fa-history text-[10px] mr-1"></i>同上次偏好
             </button>
         </div>
-    </div>
-
-    <!-- Preferences Group -->
-    <div class="card p-5 space-y-4">
-        <div class="flex items-center gap-2 mb-1">
-            <i class="fas fa-sliders-h text-stone-400 text-xs"></i>
-            <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">口味与偏好</span>
-        </div>
         
-        <div class="grid grid-cols-2 gap-4">
-            <div class="col-span-2 sm:col-span-1 space-y-1.5">
-                <label class="input-label flex items-center gap-1.5">
-                    <i class="fas fa-pepper-hot text-[10px]"></i> 口味偏好
-                </label>
-                <input type="text" name="taste" id="taste" class="input" placeholder="微辣/少油/清淡">
-            </div>
-            <div class="col-span-2 sm:col-span-1 space-y-1.5">
-                <label class="input-label flex items-center gap-1.5">
-                    <i class="fas fa-clock text-[10px]"></i> 期望时间
-                </label>
-                <input type="text" name="preferred_time" id="preferred_time" class="input" placeholder="比如：12:00">
-            </div>
-            <div class="col-span-2 sm:col-span-1 space-y-1.5">
-                <label class="input-label flex items-center gap-1.5">
-                    <i class="fas fa-map-marker-alt text-[10px]"></i> 用餐地点
-                </label>
-                <input type="text" name="location" id="location" class="input" placeholder="比如：客厅">
-            </div>
-            <div class="col-span-2 sm:col-span-1 space-y-1.5">
-                <label class="input-label flex items-center gap-1.5">
-                    <i class="fas fa-seedling text-[10px]"></i> 特殊食材
-                </label>
-                <input type="text" name="ingredients" id="ingredients" class="input" placeholder="比如：加鸡蛋">
-            </div>
-            <div class="col-span-2 space-y-1.5">
-                <label class="input-label flex items-center gap-1.5">
-                    <i class="fas fa-comment-alt text-[10px]"></i> 备注
-                </label>
-                <textarea name="remarks" id="remarks" class="input h-20 resize-none" placeholder="还有什么想告诉大厨的？"></textarea>
-            </div>
+        <div>
+            <select id="dish_id" name="dish_id" required class="input text-sm font-bold text-stone-800">
+                <option value="">— 请选择一道想吃的菜 —</option>
+                {% for dish in dishes %}
+                <option value="{{ dish.id }}" {% if request.query_params.get('dish_id')|int == dish.id %}selected{% endif %}>{{ dish.name }} ({{ dish.category or '未分类' }})</option>
+                {% endfor %}
+            </select>
         </div>
     </div>
 
-    <button type="submit" id="submit-btn" class="btn w-full py-4 text-base font-black tracking-widest shadow-lg active:shadow-sm transition-all"
-            style="background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;border-radius:var(--radius-xl);">
-        <i class="fas fa-paper-plane mr-2"></i> 立即点餐
+    <!-- Preferences Group Card -->
+    <div class="card p-5 sm:p-6 space-y-5 bg-white border border-stone-200/80 shadow-sm">
+        <div class="flex items-center gap-2.5 pb-3 border-b border-stone-100">
+            <div class="w-8 h-8 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center text-xs font-bold shrink-0">
+                <i class="fas fa-sliders-h"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-black text-stone-800">2. 口味与就餐定制</h3>
+                <p class="text-[10px] text-stone-400">快捷点选常用偏好，亦可直接在输入框中细微调整</p>
+            </div>
+        </div>
+
+        <!-- 1. 口味辣度偏好 -->
+        <div class="space-y-2.5">
+            <label class="input-label !mb-0 flex items-center gap-1.5 text-stone-700" for="taste">
+                <i class="fas fa-pepper-hot text-orange-500 text-xs"></i> 辣度与口味偏好
+            </label>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="setPrefInput('taste', '正常口味')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">正常口味</button>
+                <button type="button" onclick="setPrefInput('taste', '微辣')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">微辣</button>
+                <button type="button" onclick="setPrefInput('taste', '中辣嗜辣')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">中辣嗜辣</button>
+                <button type="button" onclick="setPrefInput('taste', '不辣清淡')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">不辣清淡</button>
+                <button type="button" onclick="setPrefInput('taste', '少油少盐')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">少油少盐</button>
+            </div>
+            <input type="text" name="taste" id="taste" class="input !h-11 text-xs" placeholder="或手动补充（如：酸甜口、微辣少麻、多放醋...）">
+        </div>
+
+        <!-- 2. 食材忌口与加料 -->
+        <div class="space-y-2.5 pt-3 border-t border-stone-100/80">
+            <label class="input-label !mb-0 flex items-center gap-1.5 text-stone-700" for="ingredients">
+                <i class="fas fa-seedling text-emerald-500 text-xs"></i> 忌口与加料偏好
+            </label>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="appendPrefInput('ingredients', '免葱姜蒜')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">免葱姜蒜</button>
+                <button type="button" onclick="appendPrefInput('ingredients', '不要香菜')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">不要香菜</button>
+                <button type="button" onclick="appendPrefInput('ingredients', '多放葱蒜')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">多放葱蒜</button>
+                <button type="button" onclick="appendPrefInput('ingredients', '加个煎蛋')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 active:scale-95 transition-all">加个煎蛋</button>
+            </div>
+            <input type="text" name="ingredients" id="ingredients" class="input !h-11 text-xs" placeholder="或手动补充（如：不要花生碎、少放酱油...）">
+        </div>
+
+        <!-- 3. 时间与地点 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-stone-100/80">
+            <!-- 期望时间 -->
+            <div class="space-y-2">
+                <label class="input-label !mb-0 flex items-center gap-1.5 text-stone-700" for="preferred_time">
+                    <i class="far fa-clock text-blue-500 text-xs"></i> 期望就餐时间
+                </label>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="setPrefInput('preferred_time', '尽快制作')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 active:scale-95 transition-all">尽快</button>
+                    <button type="button" onclick="setPrefInput('preferred_time', '12:00')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 active:scale-95 transition-all">12:00</button>
+                    <button type="button" onclick="setPrefInput('preferred_time', '12:30')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 active:scale-95 transition-all">12:30</button>
+                    <button type="button" onclick="setPrefInput('preferred_time', '18:30')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 active:scale-95 transition-all">18:30</button>
+                </div>
+                <input type="text" name="preferred_time" id="preferred_time" class="input !h-11 text-xs" placeholder="尽快 / 12:00 / 18:30...">
+            </div>
+
+            <!-- 用餐地点 -->
+            <div class="space-y-2">
+                <label class="input-label !mb-0 flex items-center gap-1.5 text-stone-700" for="location">
+                    <i class="fas fa-map-marker-alt text-amber-500 text-xs"></i> 用餐地点
+                </label>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="setPrefInput('location', '客厅餐桌')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600 active:scale-95 transition-all">客厅餐桌</button>
+                    <button type="button" onclick="setPrefInput('location', '书房工位')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600 active:scale-95 transition-all">书房工位</button>
+                    <button type="button" onclick="setPrefInput('location', '阳台休闲')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-50 border border-stone-200/80 text-stone-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600 active:scale-95 transition-all">阳台休闲</button>
+                </div>
+                <input type="text" name="location" id="location" class="input !h-11 text-xs" placeholder="客厅餐桌 / 书房 / 阳台...">
+            </div>
+        </div>
+
+        <!-- 4. 对大厨的留言 -->
+        <div class="space-y-2 pt-3 border-t border-stone-100/80">
+            <label class="input-label !mb-0 flex items-center gap-1.5 text-stone-700" for="remarks">
+                <i class="far fa-comment-dots text-stone-400 text-xs"></i> 对大厨的留言叮嘱
+            </label>
+            <textarea name="remarks" id="remarks" class="input h-20 resize-none text-xs" placeholder="还有什么特殊要求？写在这里大厨就能看到~"></textarea>
+        </div>
+    </div>
+
+    <button type="submit" id="submit-btn" class="btn btn-primary w-full py-3.5 sm:py-4 text-sm font-black tracking-wide rounded-2xl shadow-lg shadow-orange-500/25">
+        <i class="fas fa-paper-plane mr-2"></i> 提交这道点餐
     </button>
 </form>
 
-<!-- Success Overlay -->
-<div id="success-overlay" class="hidden fixed inset-0 z-[80] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center">
-    <div class="success-icon text-6xl mb-4 scale-in">&#127860;</div>
-    <p class="text-2xl font-black text-stone-800 mb-2 success-text">点餐成功！</p>
-    <p class="text-sm text-stone-400">大厨已收到你的点单</p>
-</div>
-
-<!-- Random Picker Button (Fixed) -->
+<!-- Random Food Wheel Picker Floating Action Button -->
 <div class="fixed z-40" style="bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); right: 1.5rem;">
-    <button onclick="openRandomPicker()" class="w-14 h-14 rounded-2xl text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl" style="background: linear-gradient(135deg, #6366f1, #4f46e5);" aria-label="随机选菜">
+    <button onclick="openRandomPicker()" class="w-12 h-12 rounded-2xl text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl bg-gradient-to-tr from-indigo-600 to-indigo-500" title="今天吃什么？摇一摇">
         <i class="fas fa-dice text-xl"></i>
     </button>
 </div>
 
 <!-- Random Picker Modal -->
 <div id="random-picker" class="hidden modal-overlay fixed inset-0 z-[70] bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" onclick="if(event.target===this)closeModal('random-picker')">
-    <div class="card-elevated modal-content w-full max-w-sm p-8 text-center">
+    <div class="card-elevated modal-content w-full max-w-sm p-8 text-center bg-white rounded-3xl">
         <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mx-auto mb-4">
             <i class="fas fa-dice text-2xl"></i>
         </div>
-        <h3 class="text-lg font-black text-stone-800 mb-1">纠结星人救星</h3>
-        <p class="text-xs text-stone-400 mb-8">摇一摇，看看今天吃哪个</p>
+        <h3 class="text-xl font-black text-stone-800 mb-2">纠结吃什么？</h3>
+        <p class="text-xs text-stone-400 mb-6">让命运的大转盘来帮你决定今天的私房美味吧！</p>
         
-        <div id="picker-result" class="h-24 flex items-center justify-center bg-stone-50 rounded-2xl mb-8 border border-dashed border-stone-200">
-            <span id="picker-text" class="text-2xl font-black text-stone-800">🎲</span>
+        <div id="roller" class="hidden py-6 mb-6 rounded-2xl bg-stone-50 border border-stone-100">
+            <span id="roller-text" class="text-xl font-black text-orange-500">...</span>
         </div>
-        
-        <div class="flex gap-3">
-            <button id="spin-btn" onclick="startSpin()" class="btn flex-1 bg-indigo-500 text-white hover:bg-indigo-600">
-                <i class="fas fa-sync-alt mr-1 text-xs"></i> 摇一摇
-            </button>
-            <button id="pick-confirm-btn" class="btn btn-primary flex-1 hidden" onclick="confirmPick()">
-                就吃这个！
-            </button>
-        </div>
+
+        <button onclick="startRoll()" id="roll-btn" class="btn w-full py-3.5 text-sm font-black bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-lg shadow-indigo-500/25 transition-all">
+            开始摇一摇
+        </button>
     </div>
 </div>
 
 <script>
-var dishNames = {{ dishes | map(attribute='name') | list | tojson }};
-var dishIds = {{ dishes | map(attribute='id') | list | tojson }};
-var pickedDishId = null;
-
-var currentSelection = '';
-
-(function() {
-    var params = new URLSearchParams(window.location.search);
-    var dishId = params.get('dish_id');
-    if (dishId) {
-        var sel = document.getElementById('dish_id');
-        sel.value = dishId;
-        currentSelection = dishId;
-        document.getElementById('taste').value = params.get('taste') || '';
-        document.getElementById('preferred_time').value = params.get('preferred_time') || '';
-        document.getElementById('location').value = params.get('location') || '';
-        document.getElementById('ingredients').value = params.get('ingredients') || '';
-        document.getElementById('remarks').value = params.get('remarks') || '';
-        checkPreference(dishId);
+function selectDish(id) {
+    const select = document.getElementById('dish_id');
+    if (select) {
+        select.value = id;
+        select.dispatchEvent(new Event('change'));
+        select.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-})();
-
-document.getElementById('dish_id').addEventListener('change', function() {
-    if (this.value && this.value !== currentSelection) {
-        currentSelection = this.value;
-        checkPreference(this.value);
-    } else if (!this.value) {
-        document.getElementById('fill-btn').classList.add('hidden');
-    }
-});
-
-function checkPreference(dishId) {
-    fetch('/get-preference/' + dishId)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var hasData = data.taste || data.preferred_time || data.location || data.ingredients || data.remarks;
-            document.getElementById('fill-btn').classList.toggle('hidden', !hasData);
-            if (hasData) {
-                window._pref = data;
-            }
-        });
 }
 
-function fillPreference() {
-    var p = window._pref || {};
-    document.getElementById('taste').value = p.taste || '';
-    document.getElementById('preferred_time').value = p.preferred_time || '';
-    document.getElementById('location').value = p.location || '';
-    document.getElementById('ingredients').value = p.ingredients || '';
-    document.getElementById('remarks').value = p.remarks || '';
+function setPrefInput(inputId, val) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.value = val;
+    }
+}
+
+function appendPrefInput(inputId, val) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (!input.value.trim()) {
+        input.value = val;
+    } else if (!input.value.includes(val)) {
+        input.value = input.value + '、' + val;
+    }
 }
 
 function openRandomPicker() {
     openModal('random-picker');
-    document.getElementById('pick-confirm-btn').classList.add('hidden');
-    document.getElementById('spin-btn').classList.remove('hidden');
-    document.getElementById('picker-text').textContent = '🎲';
-    document.getElementById('picker-text').className = "text-2xl font-black text-stone-800";
 }
 
-function startSpin() {
-    var btn = document.getElementById('spin-btn');
-    var text = document.getElementById('picker-text');
-    var confirmBtn = document.getElementById('pick-confirm-btn');
-    btn.disabled = true;
-    btn.classList.add('btn-loading');
+// Random picker spinning logic
+var dishNames = [{% for dish in dishes %}"{{ dish.name }}",{% endfor %}];
+var dishIds = [{% for dish in dishes %}{{ dish.id }},{% endfor %}];
 
-    var count = 0, max = 20;
-    var interval = setInterval(function() {
-        var idx = Math.floor(Math.random() * dishNames.length);
-        text.textContent = dishNames[idx];
-        pickedDishId = dishIds[idx];
+function startRoll() {
+    if (dishNames.length === 0) return;
+    const roller = document.getElementById('roller');
+    const rollerText = document.getElementById('roller-text');
+    const rollBtn = document.getElementById('roll-btn');
+    
+    roller.classList.remove('hidden');
+    rollBtn.disabled = true;
+    
+    let count = 0;
+    const maxCount = 20;
+    const interval = setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * dishNames.length);
+        rollerText.textContent = dishNames[randomIndex];
         count++;
-        if (count >= max) {
+        if (count >= maxCount) {
             clearInterval(interval);
-            btn.disabled = false;
-            btn.classList.remove('btn-loading');
-            btn.classList.add('hidden');
-            confirmBtn.classList.remove('hidden');
-            text.className = "text-2xl font-black text-indigo-600 scale-in";
+            rollBtn.disabled = false;
+            rollBtn.textContent = '就吃这道！';
+            rollBtn.onclick = function() {
+                selectDish(dishIds[randomIndex]);
+                closeModal('random-picker');
+                rollBtn.textContent = '开始摇一摇';
+                rollBtn.onclick = startRoll;
+            };
         }
-    }, 80);
+    }, 100);
 }
 
-function confirmPick() {
-    if (pickedDishId) {
-        document.getElementById('dish_id').value = pickedDishId;
-        currentSelection = pickedDishId;
-        checkPreference(pickedDishId);
-        closeModal('random-picker');
-        document.getElementById('dish_id').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-}
-
-// Success animation on form submit — only shows after server confirms
-document.getElementById('order-form').addEventListener('submit', function(e) {
-    var dishId = document.getElementById('dish_id').value;
+// Fill preference from history
+function fillPreference() {
+    const dishId = document.getElementById('dish_id').value;
     if (!dishId) return;
-    e.preventDefault();
-    var form = this;
-    var overlay = document.getElementById('success-overlay');
-    var btn = document.getElementById('submit-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> 提交中...';
+    fetch('/api/user/preference/' + dishId)
+        .then(r => r.json())
+        .then(data => {
+            if (data.found) {
+                if (data.taste) document.getElementById('taste').value = data.taste;
+                if (data.preferred_time) document.getElementById('preferred_time').value = data.preferred_time;
+                if (data.location) document.getElementById('location').value = data.location;
+                if (data.ingredients) document.getElementById('ingredients').value = data.ingredients;
+                if (data.remarks) document.getElementById('remarks').value = data.remarks;
+                showToast('已回填历史偏好', 'success');
+            }
+        });
+}
 
-    fetch('/add-item', {
-        method: 'POST',
-        body: new FormData(form),
-    }).then(function(response) {
-        if (response.ok || response.redirected) {
-            overlay.classList.remove('hidden');
-            overlay.classList.add('flex');
-            setTimeout(function() {
-                window.location.href = response.redirected ? response.url : '/my-orders?msg=点餐成功！';
-            }, 1500);
-        } else {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> 立即点餐';
-            showToast('点餐失败，请重试', 'error');
-        }
-    }).catch(function() {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> 立即点餐';
-        showToast('网络错误，请检查后重试', 'error');
-    });
+document.getElementById('dish_id')?.addEventListener('change', function() {
+    const btn = document.getElementById('fill-btn');
+    if (this.value) {
+        fetch('/api/user/preference/' + this.value)
+            .then(r => r.json())
+            .then(data => {
+                if (data.found && btn) btn.classList.remove('hidden');
+                else if (btn) btn.classList.add('hidden');
+            })
+            .catch(() => {
+                if (btn) btn.classList.add('hidden');
+            });
+    } else if (btn) {
+        btn.classList.add('hidden');
+    }
+});
+
+// Trigger change if pre-selected
+document.addEventListener('DOMContentLoaded', function() {
+    const select = document.getElementById('dish_id');
+    if (select && select.value) {
+        select.dispatchEvent(new Event('change'));
+    }
 });
 </script>
 {% endblock %}

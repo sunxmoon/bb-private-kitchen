@@ -22,6 +22,7 @@ def test_order_page_has_dishes_for_picker(client, db):
     assert "dishNames" in response.text
     assert "dishIds" in response.text
 
+
 def test_admin_page_tabs(client, db):
     # Login
     crud.create_user(db, schemas.UserCreate(name="admin", password="testpass666"))
@@ -41,3 +42,31 @@ def test_admin_page_tabs(client, db):
     assert "tab-users-list" in response.text
     assert "tab-order-history" in response.text
     assert "tab-audit-logs" in response.text
+
+
+def test_flash_message_display_and_clear(client, db):
+    crud.create_user(db, schemas.UserCreate(name="flashuser", password="testpass666"))
+    token = "test-csrf-token"
+    client.cookies.set("csrf_token", token)
+    client.post("/login", data={"name": "flashuser", "password": "testpass666", "csrf_token": token})
+
+    # Trigger action with flash redirect
+    from fastapi import APIRouter
+
+    from app.dependencies import redirect_with_flash
+
+    test_router = APIRouter()
+
+    @test_router.get("/test-flash-action")
+    def flash_action():
+        return redirect_with_flash("/", "操作成功提示")
+
+    client.app.include_router(test_router)
+
+    response = client.get("/test-flash-action", follow_redirects=True)
+    assert response.status_code == 200
+    assert "操作成功提示" in response.text
+
+    # Subsequent request should no longer have the flash message
+    response2 = client.get("/")
+    assert "操作成功提示" not in response2.text
