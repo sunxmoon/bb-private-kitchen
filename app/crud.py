@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
@@ -26,19 +26,21 @@ def json_serializable(data: Dict[str, Any]):
 
 def create_audit_log(
     db: Session,
-    user_id: int,
+    user_id: Optional[int],
     action: str,
     table_name: str,
-    record_id: int,
+    record_id: Optional[int],
     old_values: Dict[str, Any] = None,
     new_values: Dict[str, Any] = None,
     commit: bool = True,
 ):
+    clean_user_id = user_id if user_id and user_id > 0 else None
+    clean_record_id = record_id if record_id and record_id > 0 else None
     db_log = models.AuditLog(
-        user_id=user_id,
+        user_id=clean_user_id,
         action=action,
         table_name=table_name,
-        record_id=record_id,
+        record_id=clean_record_id,
         old_values=json_serializable(old_values),
         new_values=json_serializable(new_values),
     )

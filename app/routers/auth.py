@@ -34,7 +34,7 @@ async def login(
     await csrf_guard(request)
     user = crud.get_user_by_name(db, name)
     if not user:
-        crud.create_audit_log(db, 0, f"登录失败(用户不存在): {name}", "users", 0)
+        crud.create_audit_log(db, None, f"登录失败(用户不存在): {name}", "users", None)
         return RedirectResponse(url="/login?error=invalid_credentials", status_code=303)
     if not crud.authenticate_user(db, name, password):
         crud.create_audit_log(db, user.id, "登录失败(密码错误)", "users", user.id)

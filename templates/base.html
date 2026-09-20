@@ -7,12 +7,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/tailwind.min.css">
-    <link rel="stylesheet" href="/static/css/app.css?v=2.2">
+    <link rel="stylesheet" href="/static/css/tailwind.min.css?v=2.3">
+    <link rel="stylesheet" href="/static/css/app.css?v=2.3">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
-    <script src="/static/js/compress.js?v=2.2" defer></script>
-    <script src="/static/js/cart.js?v=2.2" defer></script>
+    <script src="/static/js/compress.js?v=2.3" defer></script>
+    <script src="/static/js/cart.js?v=2.3" defer></script>
     {% if csrf_token %}
     <meta name="csrf-token" content="{{ csrf_token }}">
     {% endif %}
@@ -27,7 +27,7 @@
 <body>
     {% if current_user %}
     <!-- Desktop Sidebar (Hidden on Mobile, Visible on md+) -->
-    <aside class="hidden md:flex flex-col fixed inset-y-0 left-0 w-64 glass border-r border-stone-200/70 p-5 z-40 justify-between select-none">
+    <aside class="sidebar-desktop hidden md:flex flex-col fixed inset-y-0 left-0 w-64 glass border-r border-stone-200/70 p-5 z-40 justify-between select-none">
         <div class="space-y-6">
             <!-- Brand Header -->
             <div class="flex items-center gap-3.5 px-2">

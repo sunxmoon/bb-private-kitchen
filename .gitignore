@@ -40,6 +40,8 @@ Thumbs.db
 # Temp / Backup
 *.tmp
 *.bak
+*.bak_*
+backups/
 
 # Secrets
 .env

@@ -47,9 +47,25 @@ body {
     font-family: 'Karla', 'Noto Sans SC', sans-serif;
 }
 
-/* Ensure hidden utility always takes absolute precedence */
-.hidden {
+/* Ensure non-responsive hidden elements stay hidden while respecting responsive variants */
+.hidden:not([class*="md:"], [class*="sm:"], [class*="lg:"], [class*="xl:"]) {
     display: none !important;
+}
+
+/* Desktop Sidebar & Responsive display rules */
+@media (min-width: 768px) {
+    aside.sidebar-desktop,
+    .sidebar-desktop,
+    aside.md\:flex,
+    .md\:flex {
+        display: flex !important;
+    }
+    .md\:hidden {
+        display: none !important;
+    }
+    .md\:block {
+        display: block !important;
+    }
 }
 
 /* --- Glassmorphism --- */

@@ -70,3 +70,32 @@ def test_flash_message_display_and_clear(client, db):
     # Subsequent request should no longer have the flash message
     response2 = client.get("/")
     assert "操作成功提示" not in response2.text
+
+
+def test_desktop_sidebar_and_navigation_links(client, db):
+    crud.create_user(db, schemas.UserCreate(name="navuser", password="testpass666"))
+    token = "test-csrf-token"
+    client.cookies.set("csrf_token", token)
+    client.post("/login", data={"name": "navuser", "password": "testpass666", "csrf_token": token})
+
+    response = client.get("/")
+    assert response.status_code == 200
+    html = response.text
+
+    # Assert desktop sidebar classes
+    assert "sidebar-desktop" in html
+    assert "md:flex" in html
+
+    # Assert desktop navigation items
+    assert "今日菜单" in html
+    assert "点餐中心" in html
+    assert "实时订单" in html
+    assert "采购清单" in html
+    assert "点单记录" in html
+
+    # Assert user profile, settings and logout controls
+    assert "navuser" in html
+    assert "家庭成员" in html
+    assert "/settings" in html
+    assert "/logout" in html
+
